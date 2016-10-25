@@ -1,14 +1,8 @@
 import os
-import yaml
-import codecs
+
 from django_openapi_gen import Generator, Swagger
 from django.conf import settings
 from django.core.management import BaseCommand
-
-try:
-    import simplejson as json
-except ImportError:
-    import json
 
 class Command(BaseCommand):
     help = "Generates stub controllers for endpoints specified in API scheme (both YAML and JSON are supported)"
@@ -16,22 +10,6 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('filename', required = True, help = 'API scheme file to process')
         parser.add_argument('--dryrun', default = True, dest = 'dryrun', help = 'Only lists handlers which will be generated (enabled by default')
-
-    def load(filename):
-        if filename.endswith('.json'):
-            loader = json.load
-        elif filename.endswith('.yml') or filename.endswith('.yaml'):
-            loader = yaml.load
-        else:
-            with codecs.open(filename, 'r', 'utf-8') as f:
-                contents = f.read()
-                contents = contents.strip()
-                if contents[0] in ['{', '[']:
-                    loader = json.load
-                else:
-                    loader = yaml.load
-        with codecs.open(filename, 'r', 'utf-8') as f:
-            return loader(f)
 
     def handle(self, *args, **options):
         if options['dryrun']:
