@@ -6,7 +6,7 @@ try:
 except ImportError:
     import json
 
-class Template(object):
+class Template:
     def __init__(self):
         self.loader = FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates'))
         self.env = Environment(loader = self.loader)
@@ -15,7 +15,7 @@ class Template(object):
         template = self.env.get_template(template_name)
         return template.render(**kwargs)
 
-class Swagger
+class Swagger:
     def __init__(self, name):
         self.raw = None
         self.loaded = False
@@ -46,4 +46,5 @@ class Swagger
     def get_object(self):
         if self.loaded:
             return self.raw
-        else raise ValueError('You should load spec file first')
+        else:
+            raise ValueError('You should load spec file first')

@@ -1,2 +1,2 @@
-# django-openapi-gen
-Missing OpenAPI (former Swagger) and Django tool
+# django-swagger-wrap
+Missing Swagger and Django tool
