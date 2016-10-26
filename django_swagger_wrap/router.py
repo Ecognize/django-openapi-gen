@@ -41,7 +41,7 @@ class SwaggerRouter(object):
             # if we have module, check for controller property and try to use it
             if not self.stubsonly:
                 try:
-                    name = child['x-swagger-router-controller']
+                    name = child[self.swagger.get_cshort()]
                     controller = getattr(self.external, name)
 
                     if not isinstance(controller, SwaggerController):

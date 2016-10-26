@@ -1,5 +1,7 @@
-import yaml
+from jinja2 import Environment, FileSystemLoader
 import codecs
+import yaml
+import os
 
 try:
     import simplejson as json
@@ -21,7 +23,7 @@ class Swagger:
         self.loaded = False
         self.filename = name
 
-        parse()
+        self.parse()
 
     def parse(self):
         filename = self.filename
@@ -41,6 +43,9 @@ class Swagger:
         with codecs.open(filename, 'r', 'utf-8') as f:
             self.raw = loader(f)
             self.loaded = True
+
+    def get_cshort(self):
+        return 'x-swagger-router-controller'
 
     # some advanced parsing techniques to be implemented
     def get_object(self):
