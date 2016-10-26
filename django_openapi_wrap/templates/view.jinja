@@ -1,0 +1,14 @@
+# -*- coding: utf-8 -*-
+from django_openapi_gen.views import SwaggerController
+from rest_framework.response import Response
+from rest_framework import status
+
+{% for name in names %}
+class {{ name }}(SwaggerController):
+    {% for method in methods %}
+    def {{ method }}(self, request, *args, **kwargs):
+        return Response(status = status.HTTP_200_OK)
+
+    {% endfor %}
+
+{% endfor %}

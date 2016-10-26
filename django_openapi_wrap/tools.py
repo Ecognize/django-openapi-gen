@@ -6,6 +6,15 @@ try:
 except ImportError:
     import json
 
+class Template(object):
+    def __init__(self):
+        self.loader = FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates'))
+        self.env = Environment(loader = self.loader)
+
+    def render(self, template_name, **kwargs):
+        template = self.env.get_template(template_name)
+        return template.render(**kwargs)
+
 class Swagger
     def __init__(self, name):
         self.raw = None
