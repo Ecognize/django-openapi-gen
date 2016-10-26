@@ -1,6 +1,6 @@
 from rest_framework import routers
 from django_swagger_wrap.tools import Swagger, Template
-from django_swagger_wrap.views import StubMethods, SwaggerController
+from django_swagger_wrap.views import StubMethods, SwaggerView
 
 import six
 import logging
@@ -44,7 +44,7 @@ class SwaggerRouter(object):
                     name = child[self.swagger.get_cshort()]
                     controller = getattr(self.external, name)
 
-                    if not isinstance(controller, SwaggerController):
+                    if not isinstance(controller, SwaggerView):
                         logger.info('Handler "%s" for path "%s" is not an instance of SwaggerController, using stub instead', str(controller), path)
                         stub = True
                 except KeyError:
@@ -58,7 +58,7 @@ class SwaggerRouter(object):
 
             # create stub view if needed, assign found controller otherwise
             if stub:
-                view = SwaggerController()
+                view = SwaggerView()
             else:
                 view = controller
 

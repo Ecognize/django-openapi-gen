@@ -1,5 +1,6 @@
 import os
 import six
+import codecs
 
 from django_swagger_wrap.tools import Template, Swagger
 from django.conf import settings
@@ -10,7 +11,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('filename', nargs = '+', help = 'API scheme file to process')
-        parser.add_argument('destination', nargs = '?', default = 'controllers', help = 'Name of module to be created (without extenstion)')
+        parser.add_argument('--name', nargs = '?', default = 'controllers', help = 'Name of module to be created (without extenstion)')
         parser.add_argument('--generate', action = 'store_true', dest = 'generate', help = 'Generate handlers according to spec')
 
     def handle(self, *args, **options):
@@ -35,9 +36,15 @@ class Command(BaseCommand):
             eps[path] = (name, [method for method in child if method != swagger.get_cshort()])
 
         if(options['generate']):
-            filename = options['destination']
-            print('Generating handlers ({}.py)'.format(filename))
-            #print(template.render)
+            filename = options['name'] + '.py'
+            structure = [{ 'name' : data[0], 'methods' : data[1]} for path, data in six.iteritems(eps)]
+
+            print('Generating handlers ({})...'.format(filename))
+
+            with codecs.open(filename, 'w', 'utf-8') as f:
+                f.write(template.render(template_name = 'view.jinja', names = structure))
+
+            print('Done.')
         else:
             print('Following handlers are going to be generated:')
             for path, data in six.iteritems(eps):
