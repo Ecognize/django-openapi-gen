@@ -1,5 +1,5 @@
 from rest_framework import routers
-from django_openapi_gen import Swagger
+from django_openapi_gen.tools import Swagger, Template
 from django_openapi_gen.views import StubMethods, SwaggerController
 
 import six
@@ -8,19 +8,22 @@ import importlib
 
 logger = logging.getLogger(__name__)
 
-class SwaggerRouter:
-    def __init__(self, spec, controllers):
+class SwaggerRouter(object):
+    def __init__(self, spec, controllers = None):
         self.external = None
         self.router = routers.SimpleRouter()
         self.swagger = Swagger(self.spec)
         self.stubsonly = False
 
         # try to import controller module first
-        try:
-            self.external = importlib.import_module(controllers)
-        except ImportError:
-            self.usestub = True
-            logger.info('Could not import controller module (%s), using stub handlers for all endpoints', str(controllers))
+        if controllers:
+            try:
+                self.external = importlib.import_module(controllers)
+            except ImportError:
+                self.stubsonly = True
+                logger.info('Could not import controller module (%s), using stub handlers for all endpoints', str(controllers))
+        else:
+            self.stubsonly = True
 
     def generate(self):
         obj = self.swagger.get_object()
