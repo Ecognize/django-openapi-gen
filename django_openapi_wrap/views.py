@@ -8,7 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class StubMethods():
+class StubControllerMethods():
     def get(self, request, *args, **kwargs):
         logger.info('stub GET request for %s', request.path)
         return Response(status = status.HTTP_200_OK)
@@ -37,5 +37,6 @@ class StubMethods():
         logger.info('stub DELETE request for %s', request.path)
         return Response(status = status.HTTP_204_NO_CONTENT)
 
-class DefaultAPIView(APIView):
+
+class SwaggerController(APIView):
     pass
