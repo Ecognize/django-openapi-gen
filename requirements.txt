@@ -1,3 +1,4 @@
 django
 djangorestframework
 jinja2
+flex

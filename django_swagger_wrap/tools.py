@@ -1,12 +1,8 @@
 from jinja2 import Environment, FileSystemLoader
 import codecs
-import yaml
+import flex
 import os
 
-try:
-    import simplejson as json
-except ImportError:
-    import json
 
 class Template:
     def __init__(self):
