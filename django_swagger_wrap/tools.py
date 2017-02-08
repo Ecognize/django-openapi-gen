@@ -14,38 +14,28 @@ class Template:
         return template.render(**kwargs)
 
 class Swagger:
-    def __init__(self, name):
-        self.raw = None
+    # handle is local filename, file object, string or url
+    def __init__(self, handle):
+        self.schema = None
         self.loaded = False
-        self.filename = name
+        self.handle = handle
 
         self.parse()
 
     def parse(self):
-        filename = self.filename
-
-        if filename.endswith('.json'):
-            loader = json.load
-        elif filename.endswith('.yml') or filename.endswith('.yaml'):
-            loader = yaml.load
-        else:
-            with codecs.open(filename, 'r', 'utf-8') as f:
-                contents = f.read()
-                contents = contents.strip()
-                if contents[0] in ['{', '[']:
-                    loader = json.load
-                else:
-                    loader = yaml.load
-        with codecs.open(filename, 'r', 'utf-8') as f:
-            self.raw = loader(f)
+        try:
+            self.schema = flex.load(self.handle)
             self.loaded = True
+        except:
+            ValueError('Cannot process this schema')
+            pass
 
     def get_cshort(self):
         return 'x-swagger-router-controller'
 
     # some advanced parsing techniques to be implemented
-    def get_object(self):
+    def get_schema(self):
         if self.loaded:
-            return self.raw
+            return self.schema
         else:
             raise ValueError('You should load spec file first')
