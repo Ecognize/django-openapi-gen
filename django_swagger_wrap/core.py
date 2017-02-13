@@ -1,6 +1,9 @@
 from jinja2 import Environment, FileSystemLoader
+from django_swagger_wrap.router import SwaggerRouter
+
 import codecs
 import flex
+import six
 import os
 
 
@@ -19,20 +22,25 @@ class Swagger:
         self.schema = None
         self.loaded = False
         self.handle = handle
+        self.models = []
+        self.router = None
 
-        self.parse()
-
-    def parse(self):
+        # parse
         try:
             self.schema = flex.load(self.handle)
             self.loaded = True
         except:
             ValueError('Cannot process this schema')
-            pass
 
-    def get_cshort(self):
-        return 'x-swagger-router-controller'
+        # make models for definitions
+        if 'definitions' in self.schema:
+            # make external models
+            for name, data in six.iteritems(self.schema['definitions']):
+                self.models.append()
 
+        # make routes
+        self.router = SwaggerRouter()
+    
     # some advanced parsing techniques to be implemented
     def get_schema(self):
         if self.loaded:

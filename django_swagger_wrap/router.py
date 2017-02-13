@@ -1,6 +1,8 @@
-from rest_framework import routers
+from rest_framework import serializers, routers
+
 from django_swagger_wrap.tools import Swagger, Template
 from django_swagger_wrap.views import StubMethods, SwaggerView
+#from django_swagger_wrap.params import 
 
 import six
 import logging
