@@ -1,20 +1,33 @@
 from rest_framework import serializers, routers
 
-from django_swagger_wrap.tools import Swagger, Template
-from django_swagger_wrap.views import StubMethods, SwaggerView
-#from django_swagger_wrap.params import 
+from django_swagger_wrap.tools import Template
+from django_swagger_wrap.views import StubControllerMethods, SwaggerView
+from django_swagger_wrap.params import SwaggerParameter
 
+import re
 import six
 import logging
 import importlib
 
 logger = logging.getLogger(__name__)
 
-class SwaggerRouter(object):
-    def __init__(self, spec, controllers = None):
-        self.external = None
+class SwaggerRouter():
+    # name of reference to controller in schema
+    cextname = 'x-swagger-router-controller'
+
+    # return a raw string for url regex
+    def makeraw(self, string):
+         if six.PY3:
+            return string.encode('unicode-escape')
+        else:
+            return string.encode('string-escape')
+
+    def __init__(self, base, paths, controllers = None):
+        self.base = base
+        self.urls = []
+        self.paths = paths
         self.router = routers.SimpleRouter()
-        self.swagger = Swagger(self.spec)
+        self.external = None
         self.stubsonly = False
 
         # try to import controller module first
@@ -26,13 +39,9 @@ class SwaggerRouter(object):
                 logger.info('Could not import controller module (%s), using stub handlers for all endpoints', str(controllers))
         else:
             self.stubsonly = True
-
-    def generate(self):
-        obj = self.swagger.get_object()
-
-        urls = []
-
-        for path in obj['paths']:
+        
+        # construct urls
+        for path in self.paths:
             view = None
             stub = False
             name = None
@@ -43,7 +52,7 @@ class SwaggerRouter(object):
             # if we have module, check for controller property and try to use it
             if not self.stubsonly:
                 try:
-                    name = child[self.swagger.get_cshort()]
+                    name = child[self.cextname]
                     controller = getattr(self.external, name)
 
                     if not isinstance(controller, SwaggerView):
@@ -72,10 +81,12 @@ class SwaggerRouter(object):
                 if not callable(handler):
                     setattr(view, method, six.create_bound_method(missing, view)
 
-            # create regex path
-            regex = 'stub'
+            # join basepath
+            regex = six.moves.urllib.parse.urljoin(self.base, self.path)
 
-            # append to list
-            urls.append(None)
+            # append to url list
+            self.urls.append(self.makeraw(regex))
 
-        return urls
+    def urls(self):
+        return self.urls
+

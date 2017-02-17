@@ -70,7 +70,7 @@ class ProxySerializer(serializers.Serializer):
             return serializers.FileField()
 
 
-class RootParameter():
+class SwaggerParameter():
     def __init__(self, schema):
         self.raw = None
         self.name = schema['name']

@@ -39,7 +39,10 @@ class Swagger:
                 self.models.append()
 
         # make routes
-        self.router = SwaggerRouter()
+        if 'paths' in self.schema and 'basePath' in self.schema:
+            self.router = SwaggerRouter(self.schema['basePath'], self.schema['paths'])
+        else:
+            raise ValueError('Schema is missing paths and/or basePath values')
     
     # some advanced parsing techniques to be implemented
     def get_schema(self):
