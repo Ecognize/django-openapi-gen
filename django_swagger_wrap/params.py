@@ -12,6 +12,7 @@ class ParameterType():
     Array = 4
     File = 5
 
+    # TODO: add enum
     @staticmethod
     def fromString(string):
         if string.lower() == 'string':
@@ -28,7 +29,6 @@ class ParameterType():
             return ParameterType.File
         else:
             raise InvalidParameterError('Unknown parameter type: {0}'.format(string))
-
 
 class ParameterLocation():
     Query = 0
@@ -98,3 +98,21 @@ class SwaggerParameter():
             return tmp
         else:
             pass # 400 bad request exception should be already raised
+
+    # regex representation for url matching
+    def regex(self):
+        regex = None
+
+        # TODO: add enum
+        if self.oftype == ParameterType.String:
+            regex = '([\w\%\+\-]+)'
+        elif self.oftype == ParameterType.Number:
+            regex = '(\d+\.{1}\d+)'
+        elif self.oftype == ParameterType.Integer:
+            regex = '(\d+)'
+        elif self.oftype == ParameterType.Boolean:
+            regex = '(TRUE|True|true|FALSE|False|false)'
+        # omit files and arrays for now
+
+        # TODO: validate missing params
+        return regex += '?'

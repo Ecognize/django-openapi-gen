@@ -4,6 +4,8 @@ from django_swagger_wrap.tools import Template
 from django_swagger_wrap.views import StubControllerMethods, SwaggerView
 from django_swagger_wrap.params import SwaggerParameter
 
+from django.conf.urls import url
+
 import re
 import six
 import logging
@@ -14,6 +16,9 @@ logger = logging.getLogger(__name__)
 class SwaggerRouter():
     # name of reference to controller in schema
     cextname = 'x-swagger-router-controller'
+
+    # extract parameters from url path
+    paramregex = re.compile('\{(\w?[\w\d]*)\}')
 
     # return a raw string for url regex
     def makeraw(self, string):
@@ -39,7 +44,7 @@ class SwaggerRouter():
                 logger.info('Could not import controller module (%s), using stub handlers for all endpoints', str(controllers))
         else:
             self.stubsonly = True
-        
+
         # construct urls
         for path in self.paths:
             view = None
@@ -47,7 +52,7 @@ class SwaggerRouter():
             name = None
             controller = None
 
-            child = obj['paths'][path]
+            child = self.paths[path]
 
             # if we have module, check for controller property and try to use it
             if not self.stubsonly:
@@ -82,10 +87,42 @@ class SwaggerRouter():
                     setattr(view, method, six.create_bound_method(missing, view)
 
             # join basepath
-            regex = six.moves.urllib.parse.urljoin(self.base, self.path)
+            url = six.moves.urllib.parse.urljoin(self.base, self.path)
 
-            # append to url list
-            self.urls.append(self.makeraw(regex))
+            # lets construct regex
+            regex = None
+
+            # search for parameters
+            params = self.paramregex.findall(url)
+
+            # if there are params in url, get corresponding regexes
+            if(len(params)):
+                # construct param
+                #p = SwaggerParameter(path[])
+
+                # create matching dict
+                # TODO: polish this regex
+                # rpdict = { z : r'([\d\D]+)' for z in params }
+                # pregex = re.compile("(%s)" % "|".join(map(re.escape, rpdict.keys())))
+                # create dict
+                # for p in params:
+
+                # interpret all params as text for now
+                regex = re.sub(self.paramregex, r'([\d\D]+)', url)
+
+            else:
+                # no params, just use the url
+                regex = url
+
+            # cast to list
+            regex = list(regex)
+
+            # make regex bounds
+            regex[0] = '^'
+            regex.append('$')
+
+            # make django url
+            self.urls.append(url(self.makeraw(''.join(regex)), view)) # TODO: add shortname
 
     def urls(self):
         return self.urls
