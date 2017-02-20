@@ -7,6 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class StubControllerMethods():
     def get(self, request, *args, **kwargs):
         logger.info('stub GET request for %s', request.path)

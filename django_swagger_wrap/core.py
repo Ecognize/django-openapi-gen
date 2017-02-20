@@ -1,13 +1,12 @@
 from jinja2 import Environment, FileSystemLoader
 from django_swagger_wrap.router import SwaggerRouter
 
-import codecs
 import flex
 import six
 import os
 
 
-class Template:
+class Template():
     def __init__(self):
         self.loader = FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates'))
         self.env = Environment(loader = self.loader)
@@ -16,7 +15,7 @@ class Template:
         template = self.env.get_template(template_name)
         return template.render(**kwargs)
 
-class Swagger:
+class Swagger():
     # handle is local filename, file object, string or url
     def __init__(self, handle):
         self.schema = None
@@ -26,17 +25,19 @@ class Swagger:
         self.router = None
 
         # parse
+        # TODO: proper errors
         try:
             self.schema = flex.load(self.handle)
             self.loaded = True
         except:
-            ValueError('Cannot process this schema')
+            raise ValueError('Cannot process this schema')
 
         # make models for definitions
         if 'definitions' in self.schema:
             # make external models
             for name, data in six.iteritems(self.schema['definitions']):
-                self.models.append()
+                #self.models.append()
+                pass
 
         # make routes
         if 'paths' in self.schema and 'basePath' in self.schema:

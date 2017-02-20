@@ -115,4 +115,4 @@ class SwaggerParameter():
         # omit files and arrays for now
 
         # TODO: validate missing params
-        return regex += '?'
+        return regex + '?'

@@ -1,15 +1,17 @@
-from rest_framework import serializers, routers
-
-from django_swagger_wrap.tools import Template
-from django_swagger_wrap.views import StubControllerMethods, SwaggerView
-from django_swagger_wrap.params import SwaggerParameter
-
-from django.conf.urls import url
-
 import re
 import six
 import logging
 import importlib
+
+from django.conf.urls import url
+from rest_framework import serializers, routers
+
+#from django_swagger_wrap.core import Template
+from django_swagger_wrap.views import StubControllerMethods, SwaggerView
+from django_swagger_wrap.params import SwaggerParameter
+
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +22,12 @@ class SwaggerRouter():
     # extract parameters from url path
     paramregex = re.compile('\{(\w?[\w\d]*)\}')
 
+    # allowed
+    allowed_methods = set(['get', 'put', 'post', 'head', 'patch', 'options', 'delete'])
+
     # return a raw string for url regex
     def makeraw(self, string):
-         if six.PY3:
+        if six.PY3:
             return string.encode('unicode-escape')
         else:
             return string.encode('string-escape')
@@ -78,16 +83,24 @@ class SwaggerRouter():
             else:
                 view = controller
 
+            # pick only allowed methods
+            methods = self.allowed_methods.intersection(set(child))
+
+            # check for empty path
+            # TODO: pretty errors
+            if len(methods) == 0:
+                raise ValueError('Path "%s" does not contain any supported methods' % path)
+
             # check/create missing controller methods
-            for method in child:
+            for method in methods:
                 missing = getattr(StubControllerMethods, method, None)
                 handler = getattr(view, method, None)
 
                 if not callable(handler):
-                    setattr(view, method, six.create_bound_method(missing, view)
+                    setattr(view, method, six.create_bound_method(missing, view))
 
             # join basepath
-            url = six.moves.urllib.parse.urljoin(self.base, self.path)
+            url = six.moves.urllib.parse.urljoin(self.base, path)
 
             # lets construct regex
             regex = None
@@ -122,8 +135,13 @@ class SwaggerRouter():
             regex.append('$')
 
             # make django url
-            self.urls.append(url(self.makeraw(''.join(regex)), view)) # TODO: add shortname
+            u = self.makeraw(''.join(regex))
+
+            #print(path, u, view)
+
+            self.urls.append((u, view)) # TODO: add shortname
 
     def urls(self):
+        # map to django's url()
         return self.urls
 
