@@ -3,19 +3,16 @@ import six
 import logging
 import importlib
 
-from django.conf.urls import url
+from django.conf.urls import url as make_url
 from rest_framework import serializers, routers
 
-#from django_swagger_wrap.core import Template
+from django_swagger_wrap.utils import Singleton, Template
 from django_swagger_wrap.views import StubControllerMethods, SwaggerView
 from django_swagger_wrap.params import SwaggerParameter
 
-
-
-
 logger = logging.getLogger(__name__)
 
-class SwaggerRouter():
+class SwaggerRouter(Singleton):
     # name of reference to controller in schema
     cextname = 'x-swagger-router-controller'
 
@@ -121,7 +118,7 @@ class SwaggerRouter():
                 # for p in params:
 
                 # interpret all params as text for now
-                regex = re.sub(self.paramregex, r'([\d\D]+)', url)
+                regex = re.sub(self.paramregex, '([\d\D]+)', url)
 
             else:
                 # no params, just use the url
@@ -135,13 +132,13 @@ class SwaggerRouter():
             regex.append('$')
 
             # make django url
-            u = self.makeraw(''.join(regex))
+            u = ''.join(regex)
 
-            #print(path, u, view)
+            print(path, u, view)
 
-            self.urls.append((u, view)) # TODO: add shortname
+            # map to django's url()
+            self.urls.append(make_url(u, view.as_view())) # TODO: add shortname
 
-    def urls(self):
-        # map to django's url()
+    def get_urls(self):
         return self.urls
 

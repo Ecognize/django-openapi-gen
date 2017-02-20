@@ -1,19 +1,8 @@
-from jinja2 import Environment, FileSystemLoader
 from django_swagger_wrap.router import SwaggerRouter
 
 import flex
 import six
 import os
-
-
-class Template():
-    def __init__(self):
-        self.loader = FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates'))
-        self.env = Environment(loader = self.loader)
-
-    def render(self, template_name, **kwargs):
-        template = self.env.get_template(template_name)
-        return template.render(**kwargs)
 
 class Swagger():
     # handle is local filename, file object, string or url
@@ -42,6 +31,7 @@ class Swagger():
         # make routes
         if 'paths' in self.schema and 'basePath' in self.schema:
             self.router = SwaggerRouter(self.schema['basePath'], self.schema['paths'])
+            print('Startup completed')
         else:
             raise ValueError('Schema is missing paths and/or basePath values')
     
