@@ -17,7 +17,10 @@ class SwaggerRouter(Singleton):
     cextname = 'x-swagger-router-controller'
 
     # extract parameters from url path
-    paramregex = re.compile('\{(\w?[\w\d]*)\}')
+    paramregex = re.compile(r'\{(\w?[\w\d]*)\}')
+
+    # remove heading and trailing slashes
+    wrapregex = re.compile(r'^\/?(.*)\/?')
 
     # allowed
     allowed_methods = set(['get', 'put', 'post', 'head', 'patch', 'options', 'delete'])
@@ -34,6 +37,7 @@ class SwaggerRouter(Singleton):
         self.urls = []
         self.paths = paths
         self.router = routers.SimpleRouter()
+        self.handlers = {}
         self.external = None
         self.stubsonly = False
 
@@ -80,6 +84,10 @@ class SwaggerRouter(Singleton):
             else:
                 view = controller
 
+            # ensure that view is callable
+            if view is not callable:
+                view = view.as_view()
+
             # pick only allowed methods
             methods = self.allowed_methods.intersection(set(child))
 
@@ -105,39 +113,24 @@ class SwaggerRouter(Singleton):
             # search for parameters
             params = self.paramregex.findall(url)
 
-            # if there are params in url, get corresponding regexes
+            # if there are any params, convert 'em
             if(len(params)):
+                regex = re.sub(self.paramregex, r'(?P<\1>[\d\D]+)', url) # TODO: make matching length tuneable
                 # construct param
                 #p = SwaggerParameter(path[])
-
-                # create matching dict
-                # TODO: polish this regex
-                # rpdict = { z : r'([\d\D]+)' for z in params }
-                # pregex = re.compile("(%s)" % "|".join(map(re.escape, rpdict.keys())))
-                # create dict
-                # for p in params:
-
-                # interpret all params as text for now
-                regex = re.sub(self.paramregex, '([\d\D]+)', url)
-
             else:
                 # no params, just use the url
                 regex = url
 
-            # cast to list
-            regex = list(regex)
-
             # make regex bounds
-            regex[0] = '^'
-            regex.append('$')
+            regex = re.sub(self.wrapregex, r'^\1$', regex)
 
-            # make django url
-            u = ''.join(regex)
+            # push to dict
+            self.handlers.update({ regex : view })
 
-            print(path, u, view)
+        # make sorted list and map to django's url()
+        self.urls = [ make_url(rv[0], rv[1]) for rv in sorted(six.iteritems(self.handlers)) ]
 
-            # map to django's url()
-            self.urls.append(make_url(u, view.as_view())) # TODO: add shortname
 
     def get_urls(self):
         return self.urls
