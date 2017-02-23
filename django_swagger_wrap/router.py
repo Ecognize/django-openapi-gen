@@ -84,10 +84,6 @@ class SwaggerRouter(Singleton):
             else:
                 view = controller
 
-            # ensure that view is callable
-            if view is not callable:
-                view = view.as_view()
-
             # pick only allowed methods
             methods = self.allowed_methods.intersection(set(child))
 
@@ -103,6 +99,10 @@ class SwaggerRouter(Singleton):
 
                 if not callable(handler):
                     setattr(view, method, six.create_bound_method(missing, view))
+
+            # ensure that view is callable
+            if view is not callable:
+                view = view.as_view()
 
             # join basepath
             url = six.moves.urllib.parse.urljoin(self.base, path)
