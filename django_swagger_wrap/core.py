@@ -1,4 +1,5 @@
 from django_swagger_wrap.router import SwaggerRouter
+from django_swagger_wrap.errors import SwaggerValidationError, SwaggerGenericError
 
 import flex
 import six
@@ -19,7 +20,7 @@ class Swagger():
             self.schema = flex.load(self.handle)
             self.loaded = True
         except:
-            raise ValueError('Cannot process this schema')
+            raise SwaggerGenericError('Cannot process schema {} : check resource availability'.format(self.handle))
 
         # make models for definitions
         if 'definitions' in self.schema:
@@ -33,11 +34,11 @@ class Swagger():
             self.router = SwaggerRouter(self.schema['basePath'], self.schema['paths'])
             print('Startup completed')
         else:
-            raise ValueError('Schema is missing paths and/or basePath values')
+            raise SwaggerValidationError('Schema is missing paths and/or basePath values')
     
     # some advanced parsing techniques to be implemented
     def get_schema(self):
         if self.loaded:
             return self.schema
         else:
-            raise ValueError('You should load spec file first')
+            raise SwaggerGenericError('You should load spec file first')
