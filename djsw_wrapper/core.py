@@ -1,8 +1,8 @@
+from django.utils import six
 from djsw_wrapper.router import SwaggerRouter
 from djsw_wrapper.errors import SwaggerValidationError, SwaggerGenericError
 
 import flex
-import six
 import os
 
 class Swagger():
@@ -34,7 +34,6 @@ class Swagger():
         # make routes
         if 'paths' in self.schema and 'basePath' in self.schema:
             self.router = SwaggerRouter(self.schema['basePath'], self.schema['paths'], self.module)
-            print('Startup completed')
         else:
             raise SwaggerValidationError('Schema is missing paths and/or basePath values')
     
