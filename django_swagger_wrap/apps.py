@@ -2,15 +2,15 @@ from django.apps import AppConfig
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
-from django_swagger_wrap.core import Swagger
+from djsw_wrapper.core import Swagger
 
 import logging
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
 
-class DjangoOpenapiWrapConfig(AppConfig):
-    name = 'django_swagger_wrap'
+class DjangoSwaggerWrapConfig(AppConfig):
+    name = 'djsw_wrapper'
     schema = None
     swagger = None
 
