@@ -5,10 +5,10 @@ import importlib
 from django.utils import six
 from django.conf.urls import url as make_url
 
-from django_swagger_wrap.utils import Singleton, Template
-from django_swagger_wrap.views import StubControllerMethods, SwaggerView
-from django_swagger_wrap.params import SwaggerParameter
-from django_swagger_wrap.errors import SwaggerValidationError, SwaggerGenericError
+from djsw_wrapper.utils import Singleton, Template
+from djsw_wrapper.views import StubControllerMethods, SwaggerView
+from djsw_wrapper.params import SwaggerParameter
+from djsw_wrapper.errors import SwaggerValidationError, SwaggerGenericError
 
 logger = logging.getLogger(__name__)
 

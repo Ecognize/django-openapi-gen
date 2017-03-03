@@ -7,8 +7,9 @@ import os
 
 class Swagger():
     # handle is local filename, file object, string or url
-    def __init__(self, handle):
+    def __init__(self, handle, module):
         self.schema = None
+        self.module = None
         self.loaded = False
         self.handle = handle
         self.models = []
@@ -18,6 +19,7 @@ class Swagger():
         # TODO: proper errors
         try:
             self.schema = flex.load(self.handle)
+            self.module = module
             self.loaded = True
         except:
             raise SwaggerGenericError('Cannot process schema {} : check resource availability'.format(self.handle))
@@ -31,7 +33,7 @@ class Swagger():
 
         # make routes
         if 'paths' in self.schema and 'basePath' in self.schema:
-            self.router = SwaggerRouter(self.schema['basePath'], self.schema['paths'])
+            self.router = SwaggerRouter(self.schema['basePath'], self.schema['paths'], self.module)
             print('Startup completed')
         else:
             raise SwaggerValidationError('Schema is missing paths and/or basePath values')

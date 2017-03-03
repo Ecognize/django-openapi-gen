@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 class DjangoSwaggerWrapConfig(AppConfig):
     name = 'djsw_wrapper'
+    module = None
     schema = None
     swagger = None
 
@@ -21,4 +22,5 @@ class DjangoSwaggerWrapConfig(AppConfig):
         if not self.schema:
             raise ImproperlyConfigured('You have to provide SWAGGER_SCHEMA setting pointing to desired schema')
         else:
-            self.swagger = Swagger(self.schema)
+            self.module = getattr(settings, 'SWAGGER_CONTROLLER', None)
+            self.swagger = Swagger(self.schema, self.module)
