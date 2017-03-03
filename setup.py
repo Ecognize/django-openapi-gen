@@ -12,5 +12,3 @@ setup(
   keywords = ['django', 'swagger', 'schema', 'django-rest-framework'],
   classifiers = [],
 )
-
-
