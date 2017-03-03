@@ -9,7 +9,7 @@ import logging
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
 
-class DjangoSwaggerWrapConfig(AppConfig):
+class djswconfig(AppConfig):
     name = 'djsw_wrapper'
     module = None
     schema = None

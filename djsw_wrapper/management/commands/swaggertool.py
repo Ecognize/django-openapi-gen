@@ -2,7 +2,7 @@ import os
 import six
 import codecs
 
-from django_swagger_wrap.tools import Template, Swagger
+from djsw_wrapper.tools import Template, Swagger
 from django.conf import settings
 from django.core.management import BaseCommand
 

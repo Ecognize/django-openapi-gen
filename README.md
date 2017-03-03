@@ -29,7 +29,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'djsw_wrapper.apps.DjangoSwaggerWrapConfig', # << add this
+    'djsw_wrapper.apps.djswconfig', # << add this
     'stubapp.apps.StubappConfig'
 ]
 

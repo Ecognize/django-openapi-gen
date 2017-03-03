@@ -1,5 +1,5 @@
-from django_swagger_wrap.router import SwaggerRouter
-from django_swagger_wrap.errors import SwaggerValidationError, SwaggerGenericError
+from djsw_wrapper.router import SwaggerRouter
+from djsw_wrapper.errors import SwaggerValidationError, SwaggerGenericError
 
 import flex
 import six
