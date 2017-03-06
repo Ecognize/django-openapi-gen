@@ -2,32 +2,43 @@ from .errors import SwaggerParameterError
 from rest_framework import serializers
 from django.utils.six import iteritems
 
-
+# TODO: rewrite to proper enum
 class ParameterType():
     String = 0
     Number = 1
     Integer = 2
     Boolean = 3
     Array = 4
-    File = 5
+    Enum = 5
+    File = 6
 
-    # TODO: add enum
-    @staticmethod
-    def fromString(string):
-        if string.lower() == 'string':
-            return ParameterType.String
-        elif string.lower() == 'number':
-            return ParameterType.Number
-        elif string.lower() == 'integer':
-            return ParameterType.Integer
-        elif string.lower() == 'boolean':
-            return ParameterType.Boolean
-        elif string.lower() == 'array':
-            return ParameterType.Array
-        elif string.lower() == 'file':
-            return ParameterType.File
+    typeset = {
+        'string' : String,
+        'number' : Number,
+        'integer' : Integer,
+        'boolean' : Boolean,
+        'array' : Array,
+        'enum' : Enum,
+        'file' : File
+    }
+
+    oftype = None
+
+    def get_type(self):
+        return self.oftype
+
+    def __init__(self, initial = None):
+        if type(initial) is None:
+            self.oftype = self.typeset.string
+        elif type(initial) is str and initial.lower() in self.typeset.keys():
+            self.oftype = self.typeset[initial.lower()]
+        elif isinstance(initial, ParameterType):
+            self.oftype = initial.get_type()
         else:
             raise SwaggerParameterError('Unknown parameter type: {0}'.format(string))
+
+    def __repr__(self):
+        return next(x for x, y in iteritems(self.typeset) if y == self.oftype)
 
 class ParameterLocation():
     Query = 0
@@ -73,9 +84,9 @@ class SwaggerParameter():
     def __init__(self, schema):
         self.raw = None
         self.name = schema['name']
-        self.oftype = ParameterType.fromString(schema['type'])
+        self.oftype = ParameterType(schema['type'])
         self.location = ParameterLocation.fromString(schema['in'])
-        self.required = schema['required']
+        self.required = schema.get('required', None)
 
         # quick check for array
         if self.oftype == ParameterType.Array and 'items' not in schema:
@@ -97,6 +108,9 @@ class SwaggerParameter():
             return tmp
         else:
             pass # 400 bad request exception should be already raised
+
+    def get_name(self):
+        return self.name
 
     def __repr__(self):
         return "{} ({})".format(self.name, self.oftype)

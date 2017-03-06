@@ -87,57 +87,40 @@ class SwaggerRouter(Singleton):
             methods = { m : None for m in self.allowed_methods.intersection(set(child)) }
 
             # check for empty path
-            # TODO: pretty errors
             if len(methods) == 0:
                 raise SwaggerValidationError('Path "{}" does not contain any supported methods'.format(path))
 
-            print('methods for {}: {}'.format(path,methods))
-            # join basepath
+            # gather all params and wrap them for matching methods
+            allparams = set()
+
+            for method in methods:
+                parameters = child[method].get('parameters')
+
+                if parameters:
+                    wrapped = list(map(lambda p : SwaggerParameter(p), parameters))
+                    methods[method] = wrapped
+                    allparams.update([x.get_name() for x in wrapped])
+
+            # enumerate named parameters and construct endpoint url
+            reg = None
             url = six.moves.urllib.parse.urljoin(self.base, path)
+            named = set(self.paramregex.findall(url))
 
-            # lets construct regex
-            regex = None
+            # if there are any named params, convert 'em to django's format; otherwise just use url
+            if len(named):
+                reg = re.sub(self.paramregex, r'(?P<\1>[\d\D]+)', url) # TODO: make matching length tuneable
 
-            # search for parameters
-            params = self.paramregex.findall(url)
-
-            #print('methods of {} are: {}'.format(path,methods))
-
-            # if there are any params, convert 'em
-            if(len(params)):
-                regex = re.sub(self.paramregex, r'(?P<\1>[\d\D]+)', url) # TODO: make matching length tuneable
-
-                for method in methods:
-                    parameters = child[method].get('parameters')
-
-                    # create validators for params if they're present
-                    if parameters:
-                        print(parameters)
-                        methods[method] = list(map(lambda p : SwaggerParameter(p), parameters))
-
-                    print('method {} of {}'.format(method, path))
-                    #print('it method: {} of: {}'.format(method, path))
-                    #pass
-                    #for p in method['parameters']:
-                    #    print('method {}, param {}'.format(method, p))
-
-                
-                for param in params:
-                    # backlink to methods
-                    # setattr(view, print(params), ...)
-                    #print(schema)
-                    pass
-
-
-                #p = SwaggerParameter(path[])
+                # check if schema missing params described in url
+                if not named.issubset(allparams):
+                    raise SwaggerValidationError('Path "{}" lacks parameters schema'.format(path))
             else:
-                # no params, just use the url
-                regex = url
+                reg = url
+
 
             for a, b in six.iteritems(methods):
-                print("{} -> {}".format(a, b))
+                print("{}: {} -> {}".format(path, a, b))
             # make regex bounds
-            regex = re.sub(self.wrapregex, r'^\1$', regex)
+            reg = re.sub(self.wrapregex, r'^\1$', reg)
 
             # check/create missing controller methods
             for method in methods:
@@ -152,7 +135,7 @@ class SwaggerRouter(Singleton):
                 view = view.as_view()
 
             # push to dict
-            self.handlers.update({ regex : view })
+            self.handlers.update({ reg : view })
 
         # make sorted list and map to django's url()
         self.urls = [ make_url(rv[0], rv[1]) for rv in sorted(six.iteritems(self.handlers)) ]
