@@ -5,10 +5,10 @@ import importlib
 from django.utils import six
 from django.conf.urls import url as make_url
 
-from djsw_wrapper.utils import Singleton, Template
-from djsw_wrapper.views import StubControllerMethods, SwaggerView
-from djsw_wrapper.params import SwaggerParameter
-from djsw_wrapper.errors import SwaggerValidationError, SwaggerGenericError
+from .utils import Singleton, Template
+from .views import StubControllerMethods, SwaggerView
+from .params import SwaggerParameter
+from .errors import SwaggerValidationError, SwaggerGenericError
 
 logger = logging.getLogger(__name__)
 
@@ -83,22 +83,15 @@ class SwaggerRouter(Singleton):
             else:
                 view = controller
 
-            # pick only allowed methods
-            methods = self.allowed_methods.intersection(set(child))
+            # pick only allowed methods and make dict of them
+            methods = { m : None for m in self.allowed_methods.intersection(set(child)) }
 
             # check for empty path
             # TODO: pretty errors
             if len(methods) == 0:
                 raise SwaggerValidationError('Path "{}" does not contain any supported methods'.format(path))
 
-            # check/create missing controller methods
-            for method in methods:
-                missing = getattr(StubControllerMethods, method, None)
-                handler = getattr(view, method, None)
-
-                if not callable(handler):
-                    setattr(view, method, six.create_bound_method(missing, view))
-
+            print('methods for {}: {}'.format(path,methods))
             # join basepath
             url = six.moves.urllib.parse.urljoin(self.base, path)
 
@@ -108,14 +101,31 @@ class SwaggerRouter(Singleton):
             # search for parameters
             params = self.paramregex.findall(url)
 
+            #print('methods of {} are: {}'.format(path,methods))
+
             # if there are any params, convert 'em
             if(len(params)):
                 regex = re.sub(self.paramregex, r'(?P<\1>[\d\D]+)', url) # TODO: make matching length tuneable
 
-                # create validator(s) for this param(s)
+                for method in methods:
+                    parameters = child[method].get('parameters')
+
+                    # create validators for params if they're present
+                    if parameters:
+                        print(parameters)
+                        methods[method] = list(map(lambda p : SwaggerParameter(p), parameters))
+
+                    print('method {} of {}'.format(method, path))
+                    #print('it method: {} of: {}'.format(method, path))
+                    #pass
+                    #for p in method['parameters']:
+                    #    print('method {}, param {}'.format(method, p))
+
+                
                 for param in params:
                     # backlink to methods
                     # setattr(view, print(params), ...)
+                    #print(schema)
                     pass
 
 
@@ -124,8 +134,18 @@ class SwaggerRouter(Singleton):
                 # no params, just use the url
                 regex = url
 
+            for a, b in six.iteritems(methods):
+                print("{} -> {}".format(a, b))
             # make regex bounds
             regex = re.sub(self.wrapregex, r'^\1$', regex)
+
+            # check/create missing controller methods
+            for method in methods:
+                missing = getattr(StubControllerMethods, method, None)
+                handler = getattr(view, method, None)
+
+                if not callable(handler):
+                    setattr(view, method, six.create_bound_method(missing, view))
 
             # ensure that view is callable
             if view is not callable:

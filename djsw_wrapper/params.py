@@ -1,4 +1,4 @@
-from djsw_swagger.errors import SwaggerParameterError
+from .errors import SwaggerParameterError
 from rest_framework import serializers
 from django.utils.six import iteritems
 
@@ -97,6 +97,9 @@ class SwaggerParameter():
             return tmp
         else:
             pass # 400 bad request exception should be already raised
+
+    def __repr__(self):
+        return "{} ({})".format(self.name, self.oftype)
 
     # regex representation for url matching
     def regex(self):
