@@ -3,3 +3,6 @@ class SwaggerValidationError(ValueError):
 
 class SwaggerGenericError(ValueError):
 	pass
+
+class SwaggerParameterError(ValueError):
+    pass

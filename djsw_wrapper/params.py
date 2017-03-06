@@ -1,8 +1,7 @@
+from djsw_swagger.errors import SwaggerParameterError
 from rest_framework import serializers
-from six import iteritems
+from django.utils.six import iteritems
 
-class InvalidParameterError(ValueError):
-    pass
 
 class ParameterType():
     String = 0
@@ -28,7 +27,7 @@ class ParameterType():
         elif string.lower() == 'file':
             return ParameterType.File
         else:
-            raise InvalidParameterError('Unknown parameter type: {0}'.format(string))
+            raise SwaggerParameterError('Unknown parameter type: {0}'.format(string))
 
 class ParameterLocation():
     Query = 0
@@ -50,7 +49,7 @@ class ParameterLocation():
         elif string.lower() == 'body':
             return ParameterLocation.Body
         else:
-            raise InvalidParameterError('Unknown parameter location: {0}'.format(string))
+            raise SwaggerParameterError('Unknown parameter location: {0}'.format(string))
 
 
 class ProxySerializer(serializers.Serializer):
@@ -80,11 +79,11 @@ class SwaggerParameter():
 
         # quick check for array
         if self.oftype == ParameterType.Array and 'items' not in schema:
-            raise InvalidParameterError('You should provide items dictionary for using array type')
+            raise SwaggerParameterError('You should provide items dictionary for using array type')
 
         # quick check for file
         if self.oftype == ParameterType.File and self.location is not ParameterLocation.FormData:
-            raise InvalidParameterError('You have to use formData location for using file type')
+            raise SwaggerParameterError('You have to use formData location for using file type')
 
         # make serializer
         self.serializer = ProxySerializer
