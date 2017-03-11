@@ -1,42 +1,50 @@
+import logging
+
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-import logging
-
 logger = logging.getLogger(__name__)
 
-
-class StubControllerMethods():
-    def get(self, request, *args, **kwargs):
-        logger.info('stub GET request for %s', request.path)
+# make http handler
+def SwaggerMethodMaker():
+    def handler(*args, **kwargs):
         return Response(status = status.HTTP_200_OK)
 
-    def put(self, request, *args, **kwargs):
-        logger.info('stub PUT request for %s', request.path)
-        return Response(status = status.HTTP_200_OK)
+    return handler
 
-    def post(self, request, *args, **kwargs):
-        logger.info('stub POST request for %s', request.path)
-        return Response(status = status.HTTP_200_OK)
+# make named APIView class with specified methods
+class SwaggerViewMaker(object):
 
-    def head(self, request, *args, **kwargs):
-        logger.info('stub HEAD request for %s', request.path)
-        return Response(status = status.HTTP_200_OK)
+    # methods: name : serializer
+    # if methods is list, no decorators will be used
+    def __init__(self, name = 'SwaggerView'):
+        self.methods = dict()
+        self.ready = False
+        self.view = None
+        self.name = name
 
-    def patch(self, request, *args, **kwargs):
-        logger.info('stub PATCH request for %s', request.path)
-        return Response(status = status.HTTP_200_OK)
+        #super(SwaggerViewMaker, self).__init__()
 
-    def options(self, request, *args, **kwargs):
-        logger.info('stub OPTIONS request for %s', request.path)
-        return Response(status = status.HTTP_200_OK)
+    # make class with methods
+    def setup(self):
+        self.view = type(self.name, (APIView,), dict(self.methods))
+        self.ready = True
 
-    def delete(self, request, *args, **kwargs):
-        logger.info('stub DELETE request for %s', request.path)
-        return Response(status = status.HTTP_204_NO_CONTENT)
+    def update_method(self, name, func):
+        self.methods[name] = func
+
+    def as_view(self):
+        if not self.ready:
+            self.setup()
+
+        return self.view.as_view()
+
+    def as_class(self):
+        if not self.ready:
+            self.setup()
+
+        return self.view
 
 
-class SwaggerView(APIView):
-    pass

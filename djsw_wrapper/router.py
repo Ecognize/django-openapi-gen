@@ -6,8 +6,8 @@ from django.utils import six
 from django.conf.urls import url as make_url
 
 from .utils import Singleton, Template
-from .views import StubControllerMethods, SwaggerView
-from .params import SwaggerParameter
+from .views import SwaggerViewMaker, SwaggerMethodMaker
+from .params import SwaggerParameter, SwaggerAutoSerializer
 from .errors import SwaggerValidationError, SwaggerGenericError
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,9 @@ class SwaggerRouter(Singleton):
         else:
             self.stubsonly = True
 
-        # construct urls
+        self.process()
+
+    def process(self):
         for path in self.paths:
             view = None
             stub = False
@@ -76,12 +78,6 @@ class SwaggerRouter(Singleton):
                     stub = True
             else:
                 stub = True
-
-            # create stub view if needed, assign found controller otherwise
-            if stub:
-                view = SwaggerView()
-            else:
-                view = controller
 
             # pick only allowed methods and make dict of them
             methods = { m : None for m in self.allowed_methods.intersection(set(child)) }
@@ -116,19 +112,31 @@ class SwaggerRouter(Singleton):
             else:
                 reg = url
 
-
-            for a, b in six.iteritems(methods):
-                print("{}: {} -> {}".format(path, a, b))
             # make regex bounds
-            reg = re.sub(self.wrapregex, r'^\1$', reg)
+            reg = re.sub(self.wrapregex, r'^\1', reg)
 
-            # check/create missing controller methods
-            for method in methods:
-                missing = getattr(StubControllerMethods, method, None)
-                handler = getattr(view, method, None)
+            # create stub view object or use existing controller
+            if stub:
+                name = re.sub(self.paramregex, r'', str().join(map(str.capitalize, path.split('/')))) + '_' + str(len(path))
+                view = SwaggerViewMaker(name)
+            else:
+                view = controller
 
-                if not callable(handler):
-                    setattr(view, method, six.create_bound_method(missing, view))
+            # create serializers
+            for method, params in six.iteritems(methods):
+                handler = getattr(view, method, None) if not stub else None
+
+                if handler is None:
+                    handler = SwaggerMethodMaker()
+
+                # wrap it into serializer
+                wrapped = SwaggerAutoSerializer(handler, params)
+
+                # write back to view
+                if stub:
+                    view.update_method(method, wrapped)
+                else:
+                    setattr(view, method, wrapped)
 
             # ensure that view is callable
             if view is not callable:
@@ -138,6 +146,7 @@ class SwaggerRouter(Singleton):
             self.handlers.update({ reg : view })
 
         # make sorted list and map to django's url()
+
         self.urls = [ make_url(rv[0], rv[1]) for rv in sorted(six.iteritems(self.handlers)) ]
 
 

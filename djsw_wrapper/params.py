@@ -78,6 +78,8 @@ class ProxySerializer(serializers.Serializer):
             return makeField(items)
         elif oftype == ParameterType.File:
             return serializers.FileField()
+        else:
+            return None
 
 
 class SwaggerParameter():
@@ -86,7 +88,7 @@ class SwaggerParameter():
         self.name = schema['name']
         self.oftype = ParameterType(schema['type'])
         self.location = ParameterLocation.fromString(schema['in'])
-        self.required = schema.get('required', None)
+        self.required = schema.get('required', False)
 
         # quick check for array
         if self.oftype == ParameterType.Array and 'items' not in schema:
@@ -113,7 +115,7 @@ class SwaggerParameter():
         return self.name
 
     def __repr__(self):
-        return "{} ({})".format(self.name, self.oftype)
+        return "{} ({},{})".format(self.name, self.oftype, self.required)
 
     # regex representation for url matching
     def regex(self):
@@ -132,3 +134,22 @@ class SwaggerParameter():
 
         # TODO: validate missing params
         return regex + '?'
+
+
+# automatically validates the data
+def SwaggerAutoSerializer(handler, params):
+    def internal(*args, **kwargs):
+        valid = True
+
+        print('calling internal')
+        print(dir(**kwargs))
+        if valid:
+            return handler
+        else:
+            pass
+
+    if params is None:
+        return handler
+    else:
+        return internal
+
