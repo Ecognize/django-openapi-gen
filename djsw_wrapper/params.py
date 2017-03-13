@@ -135,20 +135,24 @@ def SwaggerRequestHandler(handler, params, *args, **kwargs):
             self.func = func
 
         # extract params with respect to their location
-        def extract(self, request):
+        def extract(self, request, uparams):
             data = dict()
+
 
             for param in self.params:
                 p = None
                 n = param.name
                 l = param.location
 
-                if request.method == 'GET':
-                    if l is ParameterLocation.Query or l is ParameterLocation.Path:
-                        p = request.query_params.get(n, None)
-                elif request.method in ['POST', 'PUT', 'DELETE']:
-                    if l is ParameterLocation.FormData or l is ParameterLocation.Body:
-                        p = request.data.get(n, None)
+                # TODO: clarify different location combination
+                #if request.method == 'GET':
+                if l is ParameterLocation.Query:
+                    p = request.query_params.get(n, None)
+                elif l is ParameterLocation.Path:
+                    p = uparams.get(n, None)
+                #elif request.method in ['POST', 'PUT', 'DELETE']:
+                elif l is ParameterLocation.FormData or l is ParameterLocation.Body:
+                    p = request.data.get(n, None)
 
                 if p is not None:
                     data[n] = p
@@ -158,7 +162,7 @@ def SwaggerRequestHandler(handler, params, *args, **kwargs):
         # validate request data
         def process(self, request, *args, **kwargs):
             s_object = self.serializer.as_class()
-            serializer = s_object(data = self.extract(request))
+            serializer = s_object(data = self.extract(request, kwargs))
 
             if serializer.is_valid(raise_exception = True):
                 return self.func(*args, **kwargs)
