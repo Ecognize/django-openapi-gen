@@ -76,63 +76,89 @@ class SwaggerParameter():
 
     # TODO: properly handle array and enums
     def __init__(self, schema):
-        self.raw = None
-        self.name = schema['name']
-        self.oftype = ParameterType(schema['type'])
-        self.location = ParameterLocation.fromString(schema['in'])
-        self.required = schema.get('required', False)
+        self._name = schema['name']
+        self._oftype = ParameterType(schema['type']).get_type()
+        self._location = ParameterLocation.fromString(schema['in'])
+        self._required = schema.get('required', False)
 
         # default params
-        self.params = { 'required' : self.required }
+        self._params = { 'required' : self.required }
 
         # quick check for array
-        if self.oftype == ParameterType.Array and 'items' not in schema:
+        if self._oftype == ParameterType.Array and 'items' not in schema:
             raise SwaggerParameterError('You should provide items dictionary for using array type')
 
         # quick check for file
-        if self.oftype == ParameterType.File and self.location is not ParameterLocation.FormData:
+        if self._oftype == ParameterType.File and self._location is not ParameterLocation.FormData:
             raise SwaggerParameterError('You have to use formData location for using file type')
 
-    def get_name(self):
-        return self.name
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def location(self):
+        return self._location
+
+    @property
+    def required(self):
+        return self._required
+
 
     def __repr__(self):
-        return "{} ({},{})".format(self.name, self.oftype, self.required)
+        return "{} ({},{})".format(self._name, self._oftype, self._required)
 
     # TODO: properly handle array and enums
     def as_field(self):
         items = None
 
-        if self.oftype == ParameterType.String:
-            self.params['max_length'] = 255 # to be discussed
-        elif self.oftype == ParameterType.Enum:
+        if self._oftype == ParameterType.String:
+            self._params['max_length'] = 255 # to be discussed
+        elif self._oftype == ParameterType.Enum:
             pass
-        elif self.oftype == ParameterType.Array and items:
+        elif self._oftype == ParameterType.Array and items:
             pass
 
-        field = self.mapping.get(self.oftype, None)
+        field = self.mapping.get(self._oftype, None)
 
         # maybe exception?
-        return field(self.params) if field is not None else None
+        return field(**self._params) if field is not None else None
 
 # automatically validates the data
 def SwaggerRequestHandler(handler, params, *args, **kwargs):
 
     # wrapped request handler
     class SwaggerValidator(object):
-        def __init__(self, serializer = None, func = None):
+        def __init__(self, serializer = None, func = None, params = None):
             self.serializer = serializer
+            self.params = params
             self.func = func
 
-        def process(self, request, *args, **kwargs):
-            print('VALIDATION')
-            print('R:',request)
-            print('params:', kwargs)
+        # extract params with respect to their location
+        def extract(self, request):
+            data = dict()
 
-            # map kwargs request to serializer
-            # TODO: POST data!
+            for param in self.params:
+                p = None
+                n = param.name
+                l = param.location
+
+                if request.method == 'GET':
+                    if l is ParameterLocation.Query or l is ParameterLocation.Path:
+                        p = request.query_params.get(n, None)
+                elif request.method in ['POST', 'PUT', 'DELETE']:
+                    if l is ParameterLocation.FormData or l is ParameterLocation.Body:
+                        p = request.data.get(n, None)
+
+                if p is not None:
+                    data[n] = p
+
+            return data
+
+        # validate request data
+        def process(self, request, *args, **kwargs):
             s_object = self.serializer.as_class()
-            serializer = s_object(data = kwargs)
+            serializer = s_object(data = self.extract(request))
 
             if serializer.is_valid(raise_exception = True):
                 return self.func(*args, **kwargs)
@@ -146,9 +172,9 @@ def SwaggerRequestHandler(handler, params, *args, **kwargs):
         serializer = SwaggerSerializerMaker('AutoSerializer')
 
         for param in params:
-            serializer.set_attr(param.get_name(), param.as_field())
+            serializer.set_attr(param.name, param.as_field())
 
-        validator = SwaggerValidator(serializer, handler)
+        validator = SwaggerValidator(serializer, handler, params)
 
         return validator.process
 

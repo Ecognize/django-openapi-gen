@@ -95,7 +95,7 @@ class SwaggerRouter(Singleton):
                 if parameters:
                     wrapped = list(map(lambda p : SwaggerParameter(p), parameters))
                     methods[method] = wrapped
-                    allparams.update([x.get_name() for x in wrapped])
+                    allparams.update([x.name for x in wrapped])
 
             # enumerate named parameters and construct endpoint url
             reg = None
