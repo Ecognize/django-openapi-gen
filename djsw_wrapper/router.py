@@ -7,7 +7,7 @@ from django.conf.urls import url as make_url
 
 from .utils import Singleton, Template
 from .views import SwaggerViewMaker, SwaggerMethodMaker
-from .params import SwaggerParameter, SwaggerAutoSerializer
+from .params import SwaggerParameter, SwaggerRequestHandler
 from .errors import SwaggerValidationError, SwaggerGenericError
 
 logger = logging.getLogger(__name__)
@@ -129,8 +129,9 @@ class SwaggerRouter(Singleton):
                 if handler is None:
                     handler = SwaggerMethodMaker()
 
-                # wrap it into serializer
-                wrapped = SwaggerAutoSerializer(handler, params)
+                # return validation wrapper if there are some params
+                # or clean (stub) method otherwise
+                wrapped = SwaggerRequestHandler(handler, params)
 
                 # write back to view
                 if stub:

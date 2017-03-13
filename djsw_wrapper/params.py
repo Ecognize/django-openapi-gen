@@ -136,20 +136,38 @@ class SwaggerParameter():
         return regex + '?'
 
 
+class SwaggerSerializerMaker:
+    def __init__(self, params):
+        pass
+
 # automatically validates the data
-def SwaggerAutoSerializer(handler, params):
-    def internal(*args, **kwargs):
-        valid = True
+def SwaggerRequestHandler(handler, params, *args, **kwargs):
 
-        print('calling internal')
-        print(dir(**kwargs))
-        if valid:
-            return handler
-        else:
-            pass
+    # wrapped request handler
+    class SwaggerValidator(object):
+        def __init__(self, serializer = None, func = None):
+            self.serializer = serializer
+            self.func = func
 
+        def process(self, request, *args, **kwargs):
+            print('VALIDATION')
+            print('R:',request)
+
+            #s = self.serializer(data = request)
+
+            if True: #s.is_valid(raise_exception=True):
+                self.func(*args, **kwargs)
+            else:
+                pass # s.errors contains detailed error
+
+    # validate or not
     if params is None:
         return handler
     else:
-        return internal
+        # create serializer
+        # map kwargs request to params
+        serializer = SwaggerSerializerMaker(params)
+        validator = SwaggerValidator(serializer, handler)
+
+        return validator.process
 
