@@ -65,33 +65,25 @@ class ParameterLocation():
         else:
             raise SwaggerParameterError('Unknown parameter location: {0}'.format(string))
 
-
-class ProxySerializer(serializers.Serializer):
-    @staticmethod
-    def makeField(oftype, items = None):
-        if oftype == ParameterType.String:
-            return serializers.CharField(max_length = 255) # to be discussed
-        elif oftype == ParameterType.Number:
-            return serializers.DecimalField()
-        elif oftype == ParameterType.Integer:
-            return serializers.IntegerField()
-        elif oftype == ParameterType.Boolean:
-            return serializers.BooleanField()
-        elif oftype == ParameterType.Array and items:
-            return makeField(items)
-        elif oftype == ParameterType.File:
-            return serializers.FileField()
-        else:
-            return None
-
-
 class SwaggerParameter():
+    mapping = {
+        ParameterType.String : serializers.CharField,
+        ParameterType.Number : serializers.DecimalField,
+        ParameterType.Integer : serializers.IntegerField,
+        ParameterType.Boolean : serializers.BooleanField,
+        ParameterType.File : serializers.FileField
+    }
+
+    # TODO: properly handle array and enums
     def __init__(self, schema):
         self.raw = None
         self.name = schema['name']
         self.oftype = ParameterType(schema['type'])
         self.location = ParameterLocation.fromString(schema['in'])
         self.required = schema.get('required', False)
+
+        # default params
+        self.params = { 'required' : self.required }
 
         # quick check for array
         if self.oftype == ParameterType.Array and 'items' not in schema:
@@ -101,42 +93,27 @@ class SwaggerParameter():
         if self.oftype == ParameterType.File and self.location is not ParameterLocation.FormData:
             raise SwaggerParameterError('You have to use formData location for using file type')
 
-        # make serializer
-        self.serializer = ProxySerializer
-        setattr(self.serializer, 'param', ProxySerializer.makeField(self.oftype, schema.get('items')))
-
-    # validate parameter against input data
-    def process(self, rawdata):
-        tmp = self.serializer(data = {'param' : rawdata})
-
-        if tmp.is_valid(raise_exception = True):
-            return tmp
-        else:
-            pass # 400 bad request exception should be already raised
-
     def get_name(self):
         return self.name
 
     def __repr__(self):
         return "{} ({},{})".format(self.name, self.oftype, self.required)
 
-    # regex representation for url matching
-    def regex(self):
-        regex = None
+    # TODO: properly handle array and enums
+    def as_field(self):
+        items = None
 
-        # TODO: add enum
         if self.oftype == ParameterType.String:
-            regex = '([\w\%\+\-]+)'
-        elif self.oftype == ParameterType.Number:
-            regex = '(\d+\.{1}\d+)'
-        elif self.oftype == ParameterType.Integer:
-            regex = '(\d+)'
-        elif self.oftype == ParameterType.Boolean:
-            regex = '(TRUE|True|true|FALSE|False|false)'
-        # omit files and arrays for now
+            self.params['max_length'] = 255 # to be discussed
+        elif self.oftype == ParameterType.Enum:
+            pass
+        elif self.oftype == ParameterType.Array and items:
+            pass
 
-        # TODO: validate missing params
-        return regex + '?'
+        field = self.mapping.get(self.oftype, None)
+
+        # maybe exception?
+        return field(self.params) if field is not None else None
 
 # automatically validates the data
 def SwaggerRequestHandler(handler, params, *args, **kwargs):
@@ -150,21 +127,27 @@ def SwaggerRequestHandler(handler, params, *args, **kwargs):
         def process(self, request, *args, **kwargs):
             print('VALIDATION')
             print('R:',request)
+            print('params:', kwargs)
 
-            #s = self.serializer(data = request)
+            # map kwargs request to serializer
+            # TODO: POST data!
+            s_object = self.serializer.as_class()
+            serializer = s_object(data = kwargs)
 
-            if True: #s.is_valid(raise_exception=True):
+            if serializer.is_valid(raise_exception = True):
                 return self.func(*args, **kwargs)
             else:
-                pass # s.errors contains detailed error
+                pass # s.errors contain detailed error
 
     # validate or not
     if params is None:
         return handler
     else:
-        # create serializer
-        # map kwargs request to params
-        serializer = SwaggerSerializerMaker(params)
+        serializer = SwaggerSerializerMaker('AutoSerializer')
+
+        for param in params:
+            serializer.set_attr(param.get_name(), param.as_field())
+
         validator = SwaggerValidator(serializer, handler)
 
         return validator.process
