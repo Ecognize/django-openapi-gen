@@ -6,7 +6,7 @@ from django.utils import six
 from django.conf.urls import url as make_url
 
 from .utils import Singleton, Template
-from .views import SwaggerViewMaker, SwaggerMethodMaker
+from .makers import SwaggerViewMaker, SwaggerMethodMaker
 from .params import SwaggerParameter, SwaggerRequestHandler
 from .errors import SwaggerValidationError, SwaggerGenericError
 
@@ -135,7 +135,7 @@ class SwaggerRouter(Singleton):
 
                 # write back to view
                 if stub:
-                    view.update_method(method, wrapped)
+                    view.set_attr(method, wrapped)
                 else:
                     setattr(view, method, wrapped)
 

@@ -1,6 +1,9 @@
-from .errors import SwaggerParameterError
-from rest_framework import serializers
 from django.utils.six import iteritems
+from rest_framework import serializers
+
+from djsw_wrapper.errors import SwaggerParameterError
+from djsw_wrapper.makers import SwaggerSerializerMaker
+
 
 # TODO: rewrite to proper enum
 class ParameterType():
@@ -135,11 +138,6 @@ class SwaggerParameter():
         # TODO: validate missing params
         return regex + '?'
 
-
-class SwaggerSerializerMaker:
-    def __init__(self, params):
-        pass
-
 # automatically validates the data
 def SwaggerRequestHandler(handler, params, *args, **kwargs):
 
@@ -156,7 +154,7 @@ def SwaggerRequestHandler(handler, params, *args, **kwargs):
             #s = self.serializer(data = request)
 
             if True: #s.is_valid(raise_exception=True):
-                self.func(*args, **kwargs)
+                return self.func(*args, **kwargs)
             else:
                 pass # s.errors contains detailed error
 
