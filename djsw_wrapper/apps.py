@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 
 class djswconfig(AppConfig):
     name = 'djsw_wrapper'
+    verbose_name = "Django Swagger Wrapper"
+
     module = None
     schema = None
     swagger = None
