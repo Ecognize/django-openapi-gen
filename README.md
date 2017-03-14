@@ -24,7 +24,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'djsw_wrapper.apps.djswconfig', # << add this
+    'djsw_wrapper', # << add this
     'stubapp.apps.StubappConfig'
 ]
 
