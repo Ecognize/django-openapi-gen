@@ -1,4 +1,5 @@
 import os
+import codecs
 
 from django.utils import six
 from django.conf import settings
@@ -25,33 +26,25 @@ class Command(BaseCommand):
         if not module:
             raise ImproperlyConfigured('You have to specify desired controller module name in SWAGGER_CONTROLLER setting')
 
-        #print('COM')
         router = SwaggerRouter()
+
+        print('Inspecting available controllers...')
 
         router.update(True)
         router.process()
 
-        template = Template()
+        print()
+        print('Following classes and methods are going to be generated:')
 
-        eps = {}
-"""
-        for path in obj['paths']:
-            name = None
-            child = None
+        enum = router.get_enum()
 
-            # poor man's validation
-            try:
-                child = obj['paths'][path]
-                name = child[swagger.get_cshort()]
-            except AttributeError:
-                raise SyntaxError("Please provide valid Swagger document!")
-
-            # make dict
-            eps[path] = (name, [method for method in child if method != swagger.get_cshort()])
+        for name in enum:
+            print("{} : {}".format(name, enum[name]))
 
         if(options['generate']):
-            filename = options['name'] + '.py'
-            structure = [{ 'name' : data[0], 'methods' : data[1]} for path, data in six.iteritems(eps)]
+            template = Template()
+            filename = module.split('.')[-1] + '.py'
+            structure = [{ 'name' : name, 'methods' : methods } for name, methods in six.iteritems(enum)]
 
             print('Generating handlers ({})...'.format(filename))
 
@@ -60,10 +53,6 @@ class Command(BaseCommand):
 
             print('Done.')
         else:
-            print('Following handlers are going to be generated:')
-            for path, data in six.iteritems(eps):
-                print('{} -> {} ({})'.format(path, data[0], ','.join(data[1])))
-        #if(options['enumerate']):
-        #    print(eps)
-        #print(template.render('view.ninja', eps))
-"""
+            print()
+            print('Use --generate option to create them')
+

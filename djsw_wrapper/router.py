@@ -35,22 +35,13 @@ class SwaggerRouter(Singleton):
     def __init__(self, base, paths, controllers = None):
         self.base = base
         self.urls = []
+        self.enum = None
         self.paths = paths
         self.create = False
         self.handlers = {}
         self.external = None
         self.stubsonly = False
-
-        # try to import controller module first
-        if controllers:
-            try:
-                self.external = importlib.import_module(controllers)
-            except ImportError:
-                self.stubsonly = True
-
-                self.log('Could not import controller module ({}), using stub handlers for all endpoints'.format(str(controllers)))
-        else:
-            self.stubsonly = True
+        self.controllers = controllers
 
         self.process()
 
@@ -63,13 +54,30 @@ class SwaggerRouter(Singleton):
         else:
             logger.info(*args, **kwargs)
 
+    # detachable constructor
     def process(self):
+        self.stubsonly = False
+
+        # try to import controller module first
+        if self.controllers:
+            try:
+                self.external = importlib.import_module(self.controllers)
+            except ImportError:
+                self.stubsonly = True
+
+                self.log('Could not import controller module ({}), using stub handlers for all endpoints'.format(str(self.controllers)))
+        else:
+            self.stubsonly = True
+
+        # enumerate all methods for gen
+        self.enum = dict()
+
+        # iterate over all paths
         for path in self.paths:
             view = None
             stub = False
             name = None
             controller = None
-
             child = self.paths[path]
 
             # if we have module, check for controller property and try to use it
@@ -88,8 +96,8 @@ class SwaggerRouter(Singleton):
 
                 except AttributeError:
                     stub = True
-                    self.log('Could not find controller "{}" in module "{}", using stub handler'.format(name, str(self.external)))
-                    
+                    self.log('Could not find controller "{}" for path "{}", using stub handler'.format(name, path))
+
             else:
                 stub = True
 
@@ -129,12 +137,21 @@ class SwaggerRouter(Singleton):
             # make regex bounds
             reg = re.sub(self.wrapregex, r'^\1/?$', reg)
 
+            # create fallback name
+            tempname = re.sub(self.paramregex, r'', str().join(map(str.capitalize, path.split('/')))) + '_' + str(len(path))
+
             # create stub view object or use existing controller
-            if stub:
-                name = re.sub(self.paramregex, r'', str().join(map(str.capitalize, path.split('/')))) + '_' + str(len(path))
-                view = SwaggerViewMaker(name)
+            if not self.create:
+                if stub:
+                    name = tempname
+                    view = SwaggerViewMaker(name)
+                else:
+                    view = controller
             else:
-                view = controller
+                if not name:
+                    name = tempname
+
+                self.enum[name] = []
 
             # create serializers
             for method, params in six.iteritems(methods):
@@ -143,27 +160,34 @@ class SwaggerRouter(Singleton):
                 if handler is None:
                     handler = SwaggerMethodMaker()
 
-                # return validation wrapper if there are some params
-                # or clean (stub) method otherwise
-                wrapped = SwaggerRequestHandler(view, handler, params)
+                    if self.create:
+                        self.enum[name].append(method)
 
-                # write back to view
-                if stub:
-                    view.set_attr(method, wrapped)
-                else:
-                    setattr(view, method, wrapped)
+                if not self.create:
+                    # return validation wrapper if there are some params
+                    # or clean (stub) method otherwise
+                    wrapped = SwaggerRequestHandler(view, handler, params)
 
-            # ensure that view is callable
-            if view is not callable:
-                view = view.as_view()
+                    # write back to view
+                    if stub:
+                        view.set_attr(method, wrapped)
+                    else:
+                        setattr(view, method, wrapped)
 
-            # push to dict
-            self.handlers.update({ reg : view })
+            if not self.create:
+                # ensure that view is callable
+                if view is not callable:
+                    view = view.as_view()
+
+                # push to dict
+                self.handlers.update({ reg : view })
 
         # make sorted list and map to django's url()
+        if not self.create:
+            self.urls = [ make_url(rv[0], rv[1]) for rv in sorted(six.iteritems(self.handlers)) ]
 
-        self.urls = [ make_url(rv[0], rv[1]) for rv in sorted(six.iteritems(self.handlers)) ]
-
+    def get_enum(self):
+        return self.enum
 
     def get_urls(self):
         return self.urls
