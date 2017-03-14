@@ -1,26 +1,40 @@
 import os
-import six
-import codecs
 
-from djsw_wrapper.tools import Template, Swagger
+from django.utils import six
 from django.conf import settings
 from django.core.management import BaseCommand
+from django.core.exceptions import ImproperlyConfigured
+
+from djsw_wrapper.core import Swagger
+from djsw_wrapper.utils import Template
+from djsw_wrapper.router import SwaggerRouter
 
 class Command(BaseCommand):
     help = "Generates stub controllers for endpoints specified in API scheme (both YAML and JSON are supported)"
 
     def add_arguments(self, parser):
-        parser.add_argument('filename', nargs = '+', help = 'API scheme file to process')
         parser.add_argument('--name', nargs = '?', default = 'controllers', help = 'Name of module to be created (without extenstion)')
         parser.add_argument('--generate', action = 'store_true', dest = 'generate', help = 'Generate handlers according to spec')
 
     def handle(self, *args, **options):
-        swagger = Swagger(options['filename'][0])
+        schema = getattr(settings, 'SWAGGER_SCHEMA', None)
+        module = getattr(settings, 'SWAGGER_CONTROLLER', None)
+
+        if not schema:
+            raise ImproperlyConfigured('You have to provide SWAGGER_SCHEMA setting pointing to desired schema')
+        if not module:
+            raise ImproperlyConfigured('You have to specify desired controller module name in SWAGGER_CONTROLLER setting')
+
+        #print('COM')
+        router = SwaggerRouter()
+
+        router.update(True)
+        router.process()
+
         template = Template()
 
         eps = {}
-        obj = swagger.get_object()
-
+"""
         for path in obj['paths']:
             name = None
             child = None
@@ -52,3 +66,4 @@ class Command(BaseCommand):
         #if(options['enumerate']):
         #    print(eps)
         #print(template.render('view.ninja', eps))
+"""

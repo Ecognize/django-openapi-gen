@@ -5,10 +5,10 @@ import importlib
 from django.utils import six
 from django.conf.urls import url as make_url
 
-from .utils import Singleton, Template
-from .makers import SwaggerViewMaker, SwaggerMethodMaker
-from .params import SwaggerParameter, SwaggerRequestHandler
-from .errors import SwaggerValidationError, SwaggerGenericError
+from djsw_wrapper.utils import Singleton, Template
+from djsw_wrapper.makers import SwaggerViewMaker, SwaggerMethodMaker, SwaggerViewClass
+from djsw_wrapper.params import SwaggerParameter, SwaggerRequestHandler
+from djsw_wrapper.errors import SwaggerValidationError, SwaggerGenericError
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class SwaggerRouter(Singleton):
     # remove heading and trailing slashes
     wrapregex = re.compile(r'^\/?(.*)\/?')
 
-    # allowed
+    # allowed by Swagger 2.0
     allowed_methods = set(['get', 'put', 'post', 'head', 'patch', 'options', 'delete'])
 
     # return a raw string for url regex
@@ -36,6 +36,7 @@ class SwaggerRouter(Singleton):
         self.base = base
         self.urls = []
         self.paths = paths
+        self.create = False
         self.handlers = {}
         self.external = None
         self.stubsonly = False
@@ -46,11 +47,21 @@ class SwaggerRouter(Singleton):
                 self.external = importlib.import_module(controllers)
             except ImportError:
                 self.stubsonly = True
-                logger.info('Could not import controller module ({}), using stub handlers for all endpoints'.format(str(controllers)))
+
+                self.log('Could not import controller module ({}), using stub handlers for all endpoints'.format(str(controllers)))
         else:
             self.stubsonly = True
 
         self.process()
+
+    def update(self, create = False):
+        self.create = create
+
+    def log(self, *args, **kwargs):
+        if self.create:
+            print(*args, **kwargs)
+        else:
+            logger.info(*args, **kwargs)
 
     def process(self):
         for path in self.paths:
@@ -67,15 +78,18 @@ class SwaggerRouter(Singleton):
                     name = child[self.cextname]
                     controller = getattr(self.external, name)
 
-                    if not isinstance(controller, SwaggerView):
-                        logger.info('Handler "{}" for path "{}" is not an instance of SwaggerController, using stub instead'.format(str(controller), path))
+                    if not isinstance(controller, SwaggerViewClass):
                         stub = True
+                        self.log('Handler "{}" for path "{}" is not an instance of {}, using stub instead'.format(str(controller), path, str(SwaggerViewClass)))
+
                 except KeyError:
-                    logger.info('Controller property for path "{}" is not defined, using stub handler'.format(path))
                     stub = True
+                    self.log('Controller property for path "{}" is not defined, using stub handler'.format(path))
+
                 except AttributeError:
-                    logger.info('Could not find controller "{}" in module "{}", using stub handler'.format(name, str(self.external)))
                     stub = True
+                    self.log('Could not find controller "{}" in module "{}", using stub handler'.format(name, str(self.external)))
+                    
             else:
                 stub = True
 
