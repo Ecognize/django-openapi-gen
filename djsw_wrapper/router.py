@@ -131,7 +131,7 @@ class SwaggerRouter(Singleton):
 
                 # return validation wrapper if there are some params
                 # or clean (stub) method otherwise
-                wrapped = SwaggerRequestHandler(handler, params)
+                wrapped = SwaggerRequestHandler(view, handler, params)
 
                 # write back to view
                 if stub:

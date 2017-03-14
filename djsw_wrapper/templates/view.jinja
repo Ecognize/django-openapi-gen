@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
-from django_swagger_wrap.views import SwaggerView
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
 {% for obj in names %}
-class {{ obj.name }}(SwaggerView):
+class {{ obj.name }}(APIView):
     {% for method in obj.methods %}
     def {{ method }}(self, request, *args, **kwargs):
+        # validated request data will be here
+        data = kwargs.get('data', None)
+
         return Response(status = status.HTTP_200_OK)
 
     {% endfor %}

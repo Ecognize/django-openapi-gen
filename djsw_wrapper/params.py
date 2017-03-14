@@ -125,14 +125,15 @@ class SwaggerParameter():
         return field(**self._params) if field is not None else None
 
 # automatically validates the data
-def SwaggerRequestHandler(handler, params, *args, **kwargs):
+def SwaggerRequestHandler(view, handler, params, *args, **kwargs):
 
     # wrapped request handler
     class SwaggerValidator(object):
-        def __init__(self, serializer = None, func = None, params = None):
+        def __init__(self, view = None, serializer = None, func = None, params = None):
             self.serializer = serializer
             self.params = params
             self.func = func
+            self.view = view
 
         # extract params with respect to their location
         def extract(self, request, uparams):
@@ -165,7 +166,7 @@ def SwaggerRequestHandler(handler, params, *args, **kwargs):
             serializer = s_object(data = self.extract(request, kwargs))
 
             if serializer.is_valid(raise_exception = True):
-                return self.func(*args, **kwargs)
+                return self.func(self.view, request, data = serializer.data, *args, **kwargs)
             else:
                 pass # s.errors contain detailed error
 
@@ -173,12 +174,12 @@ def SwaggerRequestHandler(handler, params, *args, **kwargs):
     if params is None:
         return handler
     else:
-        serializer = SwaggerSerializerMaker('AutoSerializer')
+        serializer = SwaggerSerializerMaker('RequestSerializer')
 
         for param in params:
             serializer.set_attr(param.name, param.as_field())
 
-        validator = SwaggerValidator(serializer, handler, params)
+        validator = SwaggerValidator(view, serializer, handler, params)
 
         return validator.process
 

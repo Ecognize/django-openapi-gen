@@ -1,5 +1,4 @@
 from django.shortcuts import render
-from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import serializers, status
 
@@ -7,7 +6,9 @@ from djsw_wrapper.utils import LazyClass
 
 # make http handler
 def SwaggerMethodMaker():
-    def handler(*args, **kwargs):
+    def handler(self, request, *args, **kwargs):
+        data = kwargs.get('data', None)
+
         return Response(status = status.HTTP_200_OK)
 
     return handler
