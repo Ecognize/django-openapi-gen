@@ -68,7 +68,7 @@ class ParameterLocation():
 class SwaggerParameter():
     mapping = {
         ParameterType.String : serializers.CharField,
-        ParameterType.Number : serializers.DecimalField,
+        ParameterType.Number : serializers.FloatField,
         ParameterType.Integer : serializers.IntegerField,
         ParameterType.Boolean : serializers.BooleanField,
         ParameterType.File : serializers.FileField
@@ -109,12 +109,17 @@ class SwaggerParameter():
         return "{} ({},{})".format(self._name, self._oftype, self._required)
 
     # TODO: properly handle array and enums
+    # TODO: store serializer params in settings
     def as_field(self):
         items = None
 
         if self._oftype == ParameterType.String:
             self._params['max_length'] = 255 # to be discussed
         elif self._oftype == ParameterType.Enum:
+            pass
+        elif self._oftype == ParameterType.Number:
+            #self._params['max_digits'] = 16
+            #self._params['decimal_places'] = 4
             pass
         elif self._oftype == ParameterType.Array and items:
             pass
