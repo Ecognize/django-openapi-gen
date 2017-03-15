@@ -9,6 +9,7 @@ setup(
   author_email = 'lyssdod@gmail.com',
   url = 'https://github.com/ErintLabs/django-openapi-gen',
   download_url = 'https://github.com/ErintLabs/django-openapi-gen/archive/0.1.3.tar.gz',
+  install_requires = ['django', 'djangorestframework', 'jinja2', 'flex'],
   keywords = ['django', 'swagger', 'schema', 'django-rest-framework'],
   classifiers = [],
 )
