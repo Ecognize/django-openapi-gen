@@ -86,10 +86,6 @@ class SwaggerRouter(Singleton):
                     name = child[self.cextname]
                     controller = getattr(self.external, name)
 
-                    if not isinstance(controller, SwaggerViewClass):
-                        stub = True
-                        self.log('Handler "{}" for path "{}" is not an instance of {}, using stub instead'.format(str(controller), path, str(SwaggerViewClass)))
-
                 except KeyError:
                     stub = True
                     self.log('Controller property for path "{}" is not defined, using stub handler'.format(path))

@@ -66,17 +66,25 @@ class ParameterLocation():
             raise SwaggerParameterError('Unknown parameter location: {0}'.format(string))
 
 class SwaggerParameter():
-    mapping = {
-        ParameterType.String : serializers.CharField,
-        ParameterType.Number : serializers.FloatField,
-        ParameterType.Integer : serializers.IntegerField,
-        ParameterType.Boolean : serializers.BooleanField,
-        ParameterType.File : serializers.FileField
-    }
+
+    def typemap(self, p):
+        mapping = {
+            ParameterType.String : serializers.CharField,
+            ParameterType.Number : serializers.FloatField,
+            ParameterType.Integer : serializers.IntegerField,
+            ParameterType.Boolean : serializers.BooleanField,
+            ParameterType.Array : serializers.ListField,
+            ParameterType.Enum : serializers.ChoiceField,
+            ParameterType.File : serializers.FileField
+        }
+
+        return mapping.get(p, None)
 
     # TODO: properly handle array and enums
     def __init__(self, schema):
         self._name = schema['name']
+        self._enum = schema.get('enum', None)
+        self._items = schema.get('items', None)
         self._oftype = ParameterType(schema['type']).get_type()
         self._location = ParameterLocation.fromString(schema['in'])
         self._required = schema.get('required', False)
@@ -85,12 +93,21 @@ class SwaggerParameter():
         self._params = { 'required' : self.required }
 
         # quick check for array
-        if self._oftype == ParameterType.Array and 'items' not in schema:
+        if self._oftype is ParameterType.Array and 'items' not in schema:
             raise SwaggerParameterError('You should provide items dictionary for using array type')
 
         # quick check for file
-        if self._oftype == ParameterType.File and self._location is not ParameterLocation.FormData:
+        if self._oftype is ParameterType.File and self._location is not ParameterLocation.FormData:
             raise SwaggerParameterError('You have to use formData location for using file type')
+
+        if self._oftype is ParameterType.Array:
+            child = self.typemap(ParameterType(self._items['type']).get_type())
+            self._params = { 'child': child() }
+
+        if self._enum:
+            self._oftype = ParameterType.Enum
+            self._params = { 'choices' : self._enum }
+
 
     @property
     def name(self):
@@ -113,18 +130,18 @@ class SwaggerParameter():
     def as_field(self):
         items = None
 
-        if self._oftype == ParameterType.String:
+        if self._oftype is ParameterType.String:
             self._params['max_length'] = 255 # to be discussed
-        elif self._oftype == ParameterType.Enum:
+        elif self._oftype is ParameterType.Enum:
             pass
-        elif self._oftype == ParameterType.Number:
+        elif self._oftype is ParameterType.Number:
             #self._params['max_digits'] = 16
             #self._params['decimal_places'] = 4
             pass
-        elif self._oftype == ParameterType.Array and items:
+        elif self._oftype is ParameterType.Array and items:
             pass
 
-        field = self.mapping.get(self._oftype, None)
+        field = self.typemap(self._oftype)
 
         # maybe exception?
         return field(**self._params) if field is not None else None
@@ -144,7 +161,7 @@ def SwaggerRequestHandler(view, handler, params, *args, **kwargs):
         def extract(self, request, uparams):
             data = dict()
 
-
+            # TODO: what about JSON?
             for param in self.params:
                 p = None
                 n = param.name
@@ -153,7 +170,7 @@ def SwaggerRequestHandler(view, handler, params, *args, **kwargs):
                 # TODO: clarify different location combination
                 #if request.method == 'GET':
                 if l is ParameterLocation.Query:
-                    p = request.query_params.get(n, None)
+                    p = request.query_params.getlist(n, None)
                 elif l is ParameterLocation.Path:
                     p = uparams.get(n, None)
                 #elif request.method in ['POST', 'PUT', 'DELETE']:
