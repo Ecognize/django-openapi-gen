@@ -1,4 +1,5 @@
 import os
+import re
 from jinja2 import Environment, FileSystemLoader
 
 class _Singleton(type):
@@ -45,3 +46,16 @@ class Template():
     def render(self, template_name, **kwargs):
         template = self.env.get_template(template_name)
         return template.render(**kwargs)
+
+# processes $ref links
+def Resolver(obj, path, full = False):
+    m = re.search('#/(.*)/(.*)', path)
+    x = None
+
+    if full:
+        b = obj[m.group(1)]
+        x = b[m.group(2)]
+    else:
+        x = m.group(2)
+
+    return x

@@ -93,14 +93,14 @@ class SwaggerParameter():
         self._params = { 'required' : self.required }
 
         # quick check for array
-        if self._oftype is ParameterType.Array and 'items' not in schema:
+        if self._oftype == ParameterType.Array and 'items' not in schema:
             raise SwaggerParameterError('You should provide items dictionary for using array type')
 
         # quick check for file
-        if self._oftype is ParameterType.File and self._location is not ParameterLocation.FormData:
+        if self._oftype == ParameterType.File and self._location is not ParameterLocation.FormData:
             raise SwaggerParameterError('You have to use formData location for using file type')
 
-        if self._oftype is ParameterType.Array:
+        if self._oftype == ParameterType.Array:
             child = self.typemap(ParameterType(self._items['type']).get_type())
             self._params = { 'child': child() }
 
@@ -169,15 +169,15 @@ def SwaggerRequestHandler(view, handler, params, *args, **kwargs):
 
                 # TODO: clarify different location combination
                 #if request.method == 'GET':
-                if l is ParameterLocation.Query:
+                if l == ParameterLocation.Query:
                     p = request.query_params.getlist(n, None)
-                elif l is ParameterLocation.Path:
+                elif l == ParameterLocation.Path:
                     p = uparams.get(n, None)
                 #elif request.method in ['POST', 'PUT', 'DELETE']:
-                elif l is ParameterLocation.FormData or l is ParameterLocation.Body:
+                elif l == ParameterLocation.FormData or l == ParameterLocation.Body:
                     p = request.data.get(n, None)
 
-                if p is not None:
+                if p:
                     data[n] = p
 
             return data
@@ -193,7 +193,7 @@ def SwaggerRequestHandler(view, handler, params, *args, **kwargs):
                 pass # s.errors contain detailed error
 
     # validate or not
-    if params is None:
+    if not params:
         return handler
     else:
         serializer = SwaggerSerializerMaker('RequestSerializer')

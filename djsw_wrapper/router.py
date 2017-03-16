@@ -5,7 +5,7 @@ import importlib
 from django.utils import six
 from django.conf.urls import url as make_url
 
-from djsw_wrapper.utils import Singleton, Template
+from djsw_wrapper.utils import Singleton, Template, Resolver
 from djsw_wrapper.makers import SwaggerViewMaker, SwaggerMethodMaker, SwaggerViewClass
 from djsw_wrapper.params import SwaggerParameter, SwaggerRequestHandler
 from djsw_wrapper.errors import SwaggerValidationError, SwaggerGenericError
@@ -32,12 +32,14 @@ class SwaggerRouter(Singleton):
         else:
             return string.encode('string-escape')
 
-    def __init__(self, base, paths, controllers = None):
-        self.base = base
+    def __init__(self, schema, controllers = None, models = None):
+        self.base = schema['basePath']
         self.urls = []
         self.enum = None
-        self.paths = paths
+        self.paths = schema['paths']
+        self.schema = schema
         self.create = False
+        self.models = models
         self.handlers = {}
         self.external = None
         self.stubsonly = False
@@ -107,13 +109,26 @@ class SwaggerRouter(Singleton):
             # gather all params and wrap them for matching methods
             allparams = set()
 
+            # process methods and responses
             for method in methods:
-                parameters = child[method].get('parameters')
+                responses = child[method].get('responses', None)
+                parameters = child[method].get('parameters', None)
 
                 if parameters:
                     wrapped = list(map(lambda p : SwaggerParameter(p), parameters))
                     methods[method] = wrapped
                     allparams.update([x.name for x in wrapped])
+
+                # TODO: simplify
+                if responses:
+                    successful = responses[200]
+                    schema = successful.get('schema', None)
+
+                    if schema and schema.get('type', None) == 'array':
+                        model = Resolver(self.schema, schema['items']['$ref'])
+                        mdata = self.models[model]
+
+                        
 
             # enumerate named parameters and construct endpoint url
             reg = None
