@@ -82,6 +82,9 @@ class SwaggerRouter(Singleton):
             controller = None
             child = self.paths[path]
 
+            # get name from schema
+            name = child[self.cextname]
+
             # if we have module, check for controller property and try to use it
             if not self.stubsonly:
                 try:
@@ -97,9 +100,6 @@ class SwaggerRouter(Singleton):
 
             else:
                 stub = True
-
-            # get name from schema
-            name = child[self.cextname]
 
             # pick only allowed methods and make dict of them
             methods = { m : None for m in self.allowed_methods.intersection(set(child)) }
