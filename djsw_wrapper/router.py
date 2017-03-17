@@ -85,7 +85,6 @@ class SwaggerRouter(Singleton):
             # if we have module, check for controller property and try to use it
             if not self.stubsonly:
                 try:
-                    name = child[self.cextname]
                     controller = getattr(self.external, name)
 
                 except KeyError:
@@ -98,6 +97,9 @@ class SwaggerRouter(Singleton):
 
             else:
                 stub = True
+
+            # get name from schema
+            name = child[self.cextname]
 
             # pick only allowed methods and make dict of them
             methods = { m : None for m in self.allowed_methods.intersection(set(child)) }
@@ -150,6 +152,9 @@ class SwaggerRouter(Singleton):
             # make regex bounds
             reg = re.sub(self.wrapregex, r'^\1/?$', reg)
 
+            # get documentation (if present)
+            doc = child.get('description', None)
+
             # create fallback name
             tempname = re.sub(self.paramregex, r'', str().join(map(str.capitalize, path.split('/')))) + '_' + str(len(path))
 
@@ -164,17 +169,17 @@ class SwaggerRouter(Singleton):
                 if not name:
                     name = tempname
 
-                self.enum[name] = []
+                self.enum[name] = { 'methods' : [], 'doc' : doc.splitlines() if doc else None }
 
             # create serializers
             for method, data in six.iteritems(methods):
                 handler = getattr(view, method, None) if not stub else None
 
                 if handler is None:
-                    handler = SwaggerMethodMaker()
+                    handler = SwaggerMethodMaker(data['model'])
 
                     if self.create:
-                        self.enum[name].append({ 'method' : method, 'model' : data['model'] })
+                        self.enum[name]['methods'].append({ 'method' : method, 'model' : data['model'] })
 
                 if not self.create:
                     # return validation wrapper if there are some params
@@ -186,6 +191,10 @@ class SwaggerRouter(Singleton):
                         view.set_attr(method, wrapped)
                     else:
                         setattr(view, method, wrapped)
+
+            # create doc
+            if doc and stub and not self.create:
+                view.set_attr('__doc__', doc)
 
             if not self.create:
                 # ensure that view is callable

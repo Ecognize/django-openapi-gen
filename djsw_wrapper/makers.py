@@ -7,13 +7,24 @@ from djsw_wrapper.utils import LazyClass
 SwaggerViewClass = APIView
 
 # make http handler
-def SwaggerMethodMaker():
-    def handler(self, request, *args, **kwargs):
+# TODO: rewrite to class?
+def SwaggerMethodMaker(model = None):
+    def model_handler(self, request, *args, **kwargs):
         data = kwargs.get('data', None)
+        resp = model
 
-        return Response(status = status.HTTP_200_OK)
+        return Response(resp, status = status.HTTP_200_OK)
 
-    return handler
+    def empty_handler(self, request, *args, **kwargs):
+        data = kwargs.get('data', None)
+        resp = None
+
+        return Response(resp, status = status.HTTP_200_OK)
+
+    if model:
+        return model_handler
+    else:
+        return empty_handler
 
 # make named APIView class with specified methods
 class SwaggerViewMaker(LazyClass):

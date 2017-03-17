@@ -39,9 +39,7 @@ class Command(BaseCommand):
         enum = router.get_enum()
 
         for name in enum:
-            print("{} : {}".format(name, [x['method'] for x in enum[name]]))
-
-        #print(enum)
+            print("{} : {}".format(name, [x['method'] for x in enum[name]['methods']]))
 
         if(options['generate']):
             template = Template()
