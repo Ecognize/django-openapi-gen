@@ -24,5 +24,5 @@ class djswconfig(AppConfig):
         if not self.schema:
             raise ImproperlyConfigured('You have to provide SWAGGER_SCHEMA setting pointing to desired schema')
         else:
-            self.module = getattr(settings, 'SWAGGER_CONTROLLER', None)
+            self.module = getattr(settings, 'SWAGGER_MODULE', None)
             self.swagger = Swagger(self.schema, self.module)

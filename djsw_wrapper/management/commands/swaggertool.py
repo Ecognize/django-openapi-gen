@@ -19,12 +19,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         schema = getattr(settings, 'SWAGGER_SCHEMA', None)
-        module = getattr(settings, 'SWAGGER_CONTROLLER', None)
+        module = getattr(settings, 'SWAGGER_MODULE', None)
 
         if not schema:
             raise ImproperlyConfigured('You have to provide SWAGGER_SCHEMA setting pointing to desired schema')
         if not module:
-            raise ImproperlyConfigured('You have to specify desired controller module name in SWAGGER_CONTROLLER setting')
+            raise ImproperlyConfigured('You have to specify desired controller module name in SWAGGER_MODULE setting')
 
         router = SwaggerRouter()
 
