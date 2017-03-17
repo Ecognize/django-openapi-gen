@@ -1,28 +1,18 @@
-import sys
-import contextlib
 from distutils.core import setup
 
-if (sys.version_info > (3, 0)):
-    from urllib.request import urlopen as urlopen
-else:
-    from urllib2 import urlopen
-
-txt = None
-req = 'https://raw.githubusercontent.com/ErintLabs/django-openapi-gen/master/requirements.txt'
-
-with contextlib.closing(urlopen(req)) as u:
-    txt = [x.decode('utf-8') for x in u.read().splitlines()]
+with open('requirements.txt') as req:
+    content = req.readlines()
 
 setup(
   name = 'djsw_wrapper',
   packages = ['djsw_wrapper'],
-  version = '0.1.5',
+  version = '0.1.8',
   description = 'Allows to build REST API directly from Swagger schema',
   author = 'Alex Revin',
   author_email = 'lyssdod@gmail.com',
   url = 'https://github.com/ErintLabs/django-openapi-gen',
-  download_url = 'https://github.com/ErintLabs/django-openapi-gen/archive/0.1.5.tar.gz',
-  install_requires = txt,
+  download_url = 'https://github.com/ErintLabs/django-openapi-gen/archive/0.1.8.tar.gz',
+  install_requires = [x.strip() for x in content],
   keywords = ['django', 'swagger', 'schema', 'django-rest-framework'],
   classifiers = [],
 )
