@@ -39,12 +39,14 @@ class Command(BaseCommand):
         enum = router.get_enum()
 
         for name in enum:
-            print("{} : {}".format(name, enum[name]))
+            print("{} : {}".format(name, [x['method'] for x in enum[name]]))
+
+        #print(enum)
 
         if(options['generate']):
             template = Template()
             filename = module.split('.')[-1] + '.py'
-            structure = [{ 'name' : name, 'methods' : methods } for name, methods in six.iteritems(enum)]
+            structure = [{ 'name' : name, 'data' : data } for name, data in six.iteritems(enum)]
 
             print('Generating handlers ({})...'.format(filename))
 

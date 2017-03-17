@@ -114,6 +114,10 @@ class SwaggerParameter():
         return self._name
 
     @property
+    def oftype(self):
+        return self._oftype
+
+    @property
     def location(self):
         return self._location
 
@@ -163,22 +167,27 @@ def SwaggerRequestHandler(view, handler, params, *args, **kwargs):
 
             # TODO: what about JSON?
             for param in self.params:
+                store = None
+                value = None
+
                 p = None
                 n = param.name
-                l = param.location
+                t = param.oftype
 
-                # TODO: clarify different location combination
-                #if request.method == 'GET':
-                if l == ParameterLocation.Query:
-                    p = request.query_params.getlist(n, None)
-                elif l == ParameterLocation.Path:
-                    p = uparams.get(n, None)
-                #elif request.method in ['POST', 'PUT', 'DELETE']:
-                elif l == ParameterLocation.FormData or l == ParameterLocation.Body:
-                    p = request.data.get(n, None)
+                if param.location == ParameterLocation.Query:
+                    store = request.query_params
+                elif param.location == ParameterLocation.Path:
+                    store = uparams
+                elif param.location in [ParameterLocation.FormData, ParameterLocation.Body]:
+                    store = request.data
 
-                if p:
-                    data[n] = p
+                if param.oftype == ParameterType.Array:
+                    value = store.getlist(param.name, None)
+                else:
+                    value = store.get(param.name, None)
+
+                if value:
+                    data[param.name] = value
 
             return data
 

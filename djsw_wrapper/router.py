@@ -113,10 +113,11 @@ class SwaggerRouter(Singleton):
             for method in methods:
                 responses = child[method].get('responses', None)
                 parameters = child[method].get('parameters', None)
+                methoddata = { 'params' : None, 'model' : None }
 
                 if parameters:
                     wrapped = list(map(lambda p : SwaggerParameter(p), parameters))
-                    methods[method] = wrapped
+                    methoddata['params'] = wrapped
                     allparams.update([x.name for x in wrapped])
 
                 # TODO: simplify
@@ -126,9 +127,10 @@ class SwaggerRouter(Singleton):
 
                     if schema and schema.get('type', None) == 'array':
                         model = Resolver(self.schema, schema['items']['$ref'])
-                        mdata = self.models[model]
+                        mdict = { x : None for x in self.models[model] }
+                        methoddata['model'] = mdict
 
-                        
+                methods[method] = methoddata
 
             # enumerate named parameters and construct endpoint url
             reg = None
@@ -165,19 +167,19 @@ class SwaggerRouter(Singleton):
                 self.enum[name] = []
 
             # create serializers
-            for method, params in six.iteritems(methods):
+            for method, data in six.iteritems(methods):
                 handler = getattr(view, method, None) if not stub else None
 
                 if handler is None:
                     handler = SwaggerMethodMaker()
 
                     if self.create:
-                        self.enum[name].append(method)
+                        self.enum[name].append({ 'method' : method, 'model' : data['model'] })
 
                 if not self.create:
                     # return validation wrapper if there are some params
                     # or clean (stub) method otherwise
-                    wrapped = SwaggerRequestHandler(view, handler, params)
+                    wrapped = SwaggerRequestHandler(view, handler, data['params'])
 
                     # write back to view
                     if stub:
