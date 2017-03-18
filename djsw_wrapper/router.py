@@ -130,7 +130,7 @@ class SwaggerRouter(Singleton):
                     if schema and schema.get('type', None) == 'array':
                         model = Resolver(self.schema, schema['items']['$ref'])
                         mdict = { x : None for x in self.models[model] }
-                        methoddata['model'] = mdict
+                        methoddata['model'] = [mdict]
 
                 methods[method] = methoddata
 
