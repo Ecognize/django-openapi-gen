@@ -197,9 +197,11 @@ class SwaggerRouter(Singleton):
                 view.set_attr('__doc__', doc)
 
             if not self.create:
-                # ensure that view is callable
-                if view is not callable:
-                    view = view.as_view()
+                as_view = getattr(view, 'as_view', None)
+
+                # use method views if possible
+                if view is not callable and as_view:
+                    view = as_view()
 
                 # push to dict
                 self.handlers.update({ reg : view })
