@@ -141,7 +141,7 @@ class SwaggerRouter(Singleton):
 
             # if there are any named params, convert 'em to django's format; otherwise just use url
             if len(named):
-                reg = re.sub(self.paramregex, r'(?P<\1>[^/]+)', url) # TODO: make matching length tuneable
+                reg = re.sub(self.paramregex, r'(?P<\1>[^/.]+)', url) # TODO: make matching length tuneable
 
                 # check if schema missing params described in url
                 if not named.issubset(allparams):
