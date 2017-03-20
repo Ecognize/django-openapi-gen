@@ -2,6 +2,10 @@ import os
 import re
 from jinja2 import Environment, FileSystemLoader
 
+# set(dir(DummyObj)).symmetric_difference(set(dir(self))) == your class attrs
+class DummyObj(object):
+    pass
+
 class _Singleton(type):
     """ A metaclass that creates a Singleton base class when called. """
     _instances = {}
@@ -11,6 +15,10 @@ class _Singleton(type):
         return cls._instances[cls]
 
 class Singleton(_Singleton('SingletonMeta', (object,), {})): pass
+
+# TODO: test
+class LazyStorage:
+    pass
 
 # creates class from dict on demand
 class LazyClass(object):
@@ -23,15 +31,17 @@ class LazyClass(object):
         assert name is not None, ('You should provide a name for new class')
         assert self.oftype is not None, ('You should provide a type for new class')
 
-        self.handle = None
         self.attrs = dict()
-        self.ready = False
         self.name = name
+
+        # TODO: decide whether to put them into separate module
+        # set_attr('__module__', '')
 
     def set_attr(self, key, value):
         self.attrs[key] = value
 
     def as_class(self):
+        # TODO: move 'type' instances into globals() or another place (callee?)
         return type(self.name, (self.oftype,), dict(self.attrs))
 
 class Template():
