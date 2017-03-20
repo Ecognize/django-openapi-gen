@@ -210,6 +210,7 @@ def SwaggerRequestHandler(view, handler, params, *args, **kwargs):
         for param in params:
             serializer.set_attr(param.name, param.as_field())
 
+
         validator = SwaggerValidator(view, serializer, handler, params)
 
         return validator.process

@@ -10,6 +10,9 @@ from djsw_wrapper.makers import SwaggerViewMaker, SwaggerRequestMethodMaker, Swa
 from djsw_wrapper.params import SwaggerParameter, SwaggerRequestHandler
 from djsw_wrapper.errors import SwaggerValidationError, SwaggerGenericError
 
+from rest_framework.routers import SimpleRouter
+from rest_framework.viewsets import GenericViewSet
+
 logger = logging.getLogger(__name__)
 
 class SwaggerRouter(Singleton):
@@ -47,6 +50,7 @@ class SwaggerRouter(Singleton):
         self.stubsonly = False
         self.controllers = controllers
 
+        self.tempurls = []
         self.process()
 
     def update(self, create = False):
@@ -66,6 +70,7 @@ class SwaggerRouter(Singleton):
         if self.controllers:
             try:
                 self.external = importlib.import_module(self.controllers)
+
             except ImportError:
                 self.stubsonly = True
 
@@ -207,17 +212,27 @@ class SwaggerRouter(Singleton):
 
             if not self.create:
                 as_view = getattr(view, 'as_view', None)
+                viewset = issubclass(view, GenericViewSet)
 
                 # use method views if possible
-                if view is not callable and as_view:
-                    view = as_view()
+                if not viewset:
+                    if as_view:
+                        view = as_view()
 
-                # push to dict
-                self.handlers.update({ reg : view })
+                    self.handlers.update({ reg : [view, name] })
+
+                else:
+                    # hello viewset
+                    # TODO: MAJOR rewrite of viewset method breakup logic
+                    # WARNING: DRF stub for now
+                    sr = SimpleRouter()
+                    sr.register(path.strip('/'), view)
+
+                    self.tempurls.extend(sr.urls)
 
         # make sorted list and map to django's url()
         if not self.create:
-            self.urls = [ make_url(rv[0], rv[1]) for rv in sorted(six.iteritems(self.handlers)) ]
+            self.urls = [ make_url(regex, details[0], name = details[1]) for regex, details in sorted(six.iteritems(self.handlers)) ] + self.tempurls
 
     def get_enum(self):
         return self.enum
