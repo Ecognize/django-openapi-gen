@@ -185,7 +185,7 @@ class SwaggerRouter(Singleton):
                 handler = getattr(view, method, None) if not stub else None
 
                 if handler is None:
-                    handler = SwaggerMethodMaker(data['model'])
+                    handler = SwaggerRequestMethodMaker(data['model'])
 
                     if self.create:
                         self.enum[name]['methods'].append({ 'method' : method, 'model' : data['model'] })

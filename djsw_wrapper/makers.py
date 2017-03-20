@@ -35,7 +35,7 @@ class SwaggerViewMaker(LazyClass):
 
         return c.as_view()
 
-class SwaggerSerializerMaker(LazyClass):
+class SwaggerRequestSerializerMaker(LazyClass):
     oftype = serializers.Serializer
 
 # TODO: make proper model mapping
