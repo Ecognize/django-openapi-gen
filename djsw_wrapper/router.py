@@ -6,7 +6,7 @@ from django.utils import six
 from django.conf.urls import url as make_url
 
 from djsw_wrapper.utils import Singleton, Template, Resolver
-from djsw_wrapper.makers import SwaggerViewMaker, SwaggerMethodMaker, SwaggerViewClass
+from djsw_wrapper.makers import SwaggerViewMaker, SwaggerRequestMethodMaker, SwaggerViewClass
 from djsw_wrapper.params import SwaggerParameter, SwaggerRequestHandler
 from djsw_wrapper.errors import SwaggerValidationError, SwaggerGenericError
 
