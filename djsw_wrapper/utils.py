@@ -32,9 +32,6 @@ class LazyClass(object):
         self.attrs[key] = value
 
     def as_class(self):
-        if not self.ready:
-            self.setup()
-
         return type(self.name, (self.oftype,), dict(self.attrs))
 
 class Template():
