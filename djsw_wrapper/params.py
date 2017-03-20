@@ -2,7 +2,7 @@ from django.utils.six import iteritems
 from rest_framework import serializers
 
 from djsw_wrapper.errors import SwaggerParameterError
-from djsw_wrapper.makers import SwaggerSerializerMaker
+from djsw_wrapper.makers import SwaggerRequestSerializerMaker
 
 
 # TODO: rewrite to proper enum
@@ -205,7 +205,7 @@ def SwaggerRequestHandler(view, handler, params, *args, **kwargs):
     if not params:
         return handler
     else:
-        serializer = SwaggerSerializerMaker('RequestSerializer')
+        serializer = SwaggerRequestSerializerMaker('SwaggerRequestSerializer')
 
         for param in params:
             serializer.set_attr(param.name, param.as_field())

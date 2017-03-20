@@ -41,6 +41,8 @@ class SwaggerRouter(Singleton):
         self.create = False
         self.models = models
         self.handlers = {}
+        self.parsers = None
+        self.renderers = None
         self.external = None
         self.stubsonly = False
         self.controllers = controllers
@@ -73,6 +75,13 @@ class SwaggerRouter(Singleton):
 
         # enumerate all methods for gen
         self.enum = dict()
+
+        # determine parsers and renderers
+        # TODO: do we really need this?
+        #
+        # APIView.parser_classes = (XMLParser, )
+        # self.schema['consumes'] = ...
+        # self.schema['produces'] = ...
 
         # iterate over all paths
         for path in self.paths:

@@ -8,7 +8,7 @@ SwaggerViewClass = APIView
 
 # make http handler
 # TODO: rewrite to class?
-def SwaggerMethodMaker(model = None):
+def SwaggerRequestMethodMaker(model = None):
     def model_handler(self, request, *args, **kwargs):
         data = kwargs.get('data', None)
         resp = model
@@ -37,3 +37,8 @@ class SwaggerViewMaker(LazyClass):
 
 class SwaggerSerializerMaker(LazyClass):
     oftype = serializers.Serializer
+
+# TODO: make proper model mapping
+class SwaggerDataSerializerMaker(LazyClass):
+    def __init__(self, *args, **kwargs):
+        super(SwaggerDataSerializerMaker, self).__init__(*args, **kwargs)

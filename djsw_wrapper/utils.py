@@ -16,7 +16,10 @@ class Singleton(_Singleton('SingletonMeta', (object,), {})): pass
 class LazyClass(object):
     oftype = None
 
-    def __init__(self, name = None):
+    def __init__(self, oftype = None, name = None):
+        if oftype:
+            self.oftype = oftype
+
         assert name is not None, ('You should provide a name for new class')
         assert self.oftype is not None, ('You should provide a type for new class')
 
