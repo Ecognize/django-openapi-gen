@@ -28,10 +28,6 @@ class LazyClass(object):
         self.ready = False
         self.name = name
 
-    def setup(self):
-        self.handle = type(self.name, (self.oftype,), dict(self.attrs))
-        self.ready = True
-
     def set_attr(self, key, value):
         self.attrs[key] = value
 
@@ -39,7 +35,7 @@ class LazyClass(object):
         if not self.ready:
             self.setup()
 
-        return self.handle
+        return type(self.name, (self.oftype,), dict(self.attrs))
 
 class Template():
     def __init__(self):
