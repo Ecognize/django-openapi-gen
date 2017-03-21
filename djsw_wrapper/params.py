@@ -193,7 +193,7 @@ def SwaggerRequestHandler(view, handler, params, *args, **kwargs):
 
         # validate request data
         def process(self, request, *args, **kwargs):
-            s_object = self.serializer.as_class()
+            s_object = self.serializer() # returned obj is already another obj
             serializer = s_object(data = self.extract(request, kwargs))
 
             if serializer.is_valid(raise_exception = True):

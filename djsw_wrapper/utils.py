@@ -34,15 +34,14 @@ class LazyClass(object):
         self.attrs = dict()
         self.name = name
 
+    def __call__(self):
         # TODO: decide whether to put them into separate module
         # set_attr('__module__', '')
+        # TODO: move 'type' instances into globals() or another place (callee?)
+        return type(self.name, (self.oftype,), dict(self.attrs))
 
     def set_attr(self, key, value):
         self.attrs[key] = value
-
-    def as_class(self):
-        # TODO: move 'type' instances into globals() or another place (callee?)
-        return type(self.name, (self.oftype,), dict(self.attrs))
 
 class Template():
     def __init__(self):

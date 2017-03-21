@@ -30,16 +30,17 @@ def SwaggerRequestMethodMaker(model = None):
 class SwaggerViewMaker(LazyClass):
     oftype = SwaggerViewClass
 
-    def as_view(self):
-        c = self.as_class()
+    #def as_view(self):
+    #    print(self)
+    #    c = self()
 
-        return c.as_view()
+#        return self.as_view()
 
 class SwaggerRequestSerializerMaker(LazyClass):
     oftype = serializers.Serializer
 
 class SwaggerSerializerMaker():
-    def __init__(self, oftype = None, fields = ['__all__'], model = None):
+    def __init__(self, oftype = None, model = None, fields = ['__all__']):
         assert oftype is not None, ('You should specify a type for the serializer')
         assert type(fields) is list, ('Serializer fields should be listed')
         assert len(fields) > 0, ('Serializer fields should not be an empty list')
@@ -51,6 +52,9 @@ class SwaggerSerializerMaker():
 
         self.serializer.set_attr('Meta', self.make_meta())
 
+    def __call__(self):
+        return self.serializer()
+
     # construct metaclass (actually DRF uses it as a dict, but let's create class for safety)
     def make_meta(self):
         meta = LazyClass('Meta', type)
@@ -61,7 +65,4 @@ class SwaggerSerializerMaker():
         if self.model:
             meta.set_attr('model', self.model)
 
-        return meta.as_class()
-
-    def as_class(self):
-        return self.serializer.as_class()
+        return meta()

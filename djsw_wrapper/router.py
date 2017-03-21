@@ -12,6 +12,7 @@ from djsw_wrapper.errors import SwaggerValidationError, SwaggerGenericError
 
 from rest_framework.routers import SimpleRouter
 from rest_framework.viewsets import GenericViewSet
+from rest_framework.mixins import CreateModelMixin, ListModelMixin, RetrieveModelMixin, UpdateModelMixin, DestroyModelMixin
 
 logger = logging.getLogger(__name__)
 
@@ -189,6 +190,7 @@ class SwaggerRouter(Singleton):
             for method, data in six.iteritems(methods):
                 handler = getattr(view, method, None) if not stub else None
 
+                # TODO: refactor for viewsets
                 if handler is None:
                     handler = SwaggerRequestMethodMaker(data['model'])
 
@@ -224,11 +226,34 @@ class SwaggerRouter(Singleton):
                 else:
                     # hello viewset
                     # TODO: MAJOR rewrite of viewset method breakup logic
-                    # WARNING: DRF stub for now
-                    sr = SimpleRouter()
-                    sr.register(path.strip('/'), view)
+                    # TODO: check if swagger allows certain methods for this path
+                    # object key for certain mixins
+                    lookup_field = getattr(view, 'lookup_field', None)
 
-                    self.tempurls.extend(sr.urls)
+                    # viewset needs some love
+                    for method in methods:
+                        if method == 'get':
+                            # just GET with(out) params
+                            if issubclass(view, ListModelMixin):
+                                pass
+
+                            # GET with <pk>
+                            if issubclass(view, RetrieveModelMixin):
+                                pass
+
+                        elif method in ['put', 'post', 'patch']:
+                            # PUT/POST/PATCH request
+                            if issubclass(view, CreateModelMixin):
+                                pass
+
+                            # PUT/POST/PATCH request
+                            if issubclass(view, UpdateModelMixin):
+                                pass
+
+                        elif method == 'delete':
+                            # DELETE request
+                            if issubclass(view, DestroyModelMixin):
+                                pass
 
         # make sorted list and map to django's url()
         if not self.create:
