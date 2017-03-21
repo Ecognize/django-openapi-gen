@@ -3,7 +3,7 @@ import logging
 import importlib
 
 from django.utils import six
-from django.conf.urls import url as make_url
+from django.conf.urls import url
 
 from djsw_wrapper.utils import Singleton, Template, Resolver
 from djsw_wrapper.makers import SwaggerViewMaker, SwaggerRequestMethodMaker, SwaggerViewClass
@@ -16,42 +16,38 @@ from rest_framework.mixins import CreateModelMixin, ListModelMixin, RetrieveMode
 
 logger = logging.getLogger(__name__)
 
+#: name of swagger view reference in schema
+SCHEMA_VIEW_NAME = 'x-swagger-router-view'
+
+#: indicates whether it's a detailed obj view
+SCHEMA_VIEW_ITEM = 'x-swagger-object-item'
+
+#: django url param substitution
+DJANGO_PARAMS_REGEX = r'(?P<\1>[^/.]+)'
+
+#: removes heading and trailing slashes
+URL_SLASHES_REGEX = re.compile(r'^\/?(.*)\/?')
+
+#: extracts parameters from swagger url path
+SWAGGER_PARAMS_REGEX = re.compile(r'\{(\w?[\w\d]*)\}')
+
+#: allowed by Swagger 2.0
+SWAGGER_METHODS = set(['get', 'put', 'post', 'head', 'patch', 'options', 'delete'])
+
 class SwaggerRouter(Singleton):
-    # name of reference to controller in schema
-    cextname = 'x-swagger-router-controller'
-
-    # extract parameters from url path
-    paramregex = re.compile(r'\{(\w?[\w\d]*)\}')
-
-    # remove heading and trailing slashes
-    wrapregex = re.compile(r'^\/?(.*)\/?')
-
-    # allowed by Swagger 2.0
-    allowed_methods = set(['get', 'put', 'post', 'head', 'patch', 'options', 'delete'])
-
-    # return a raw string for url regex
-    def makeraw(self, string):
-        if six.PY3:
-            return string.encode('unicode-escape')
-        else:
-            return string.encode('string-escape')
-
     def __init__(self, schema, controllers = None, models = None):
         self.base = schema['basePath']
-        self.urls = []
         self.enum = None
+        self.links = []
         self.paths = schema['paths']
         self.schema = schema
         self.create = False
         self.models = models
         self.handlers = {}
-        self.parsers = None
-        self.renderers = None
         self.external = None
-        self.stubsonly = False
+        self.stubonly = False
         self.controllers = controllers
 
-        self.tempurls = []
         self.process()
 
     def update(self, create = False):
@@ -65,19 +61,15 @@ class SwaggerRouter(Singleton):
 
     # detachable constructor
     def process(self):
-        self.stubsonly = False
+        self.stubonly = True
 
         # try to import controller module first
         if self.controllers:
             try:
                 self.external = importlib.import_module(self.controllers)
-
+                self.stubonly = False
             except ImportError:
-                self.stubsonly = True
-
                 self.log('Could not import controller module ({}), using stub handlers for all endpoints'.format(str(self.controllers)))
-        else:
-            self.stubsonly = True
 
         # enumerate all methods for gen
         self.enum = dict()
@@ -101,7 +93,7 @@ class SwaggerRouter(Singleton):
             name = child[self.cextname]
 
             # if we have module, check for controller property and try to use it
-            if not self.stubsonly:
+            if not self.stubonly:
                 try:
                     controller = getattr(self.external, name)
 
@@ -117,7 +109,7 @@ class SwaggerRouter(Singleton):
                 stub = True
 
             # pick only allowed methods and make dict of them
-            methods = { m : None for m in self.allowed_methods.intersection(set(child)) }
+            methods = { m : None for m in SWAGGER_METHODS.intersection(set(child)) }
 
             # check for empty path
             if len(methods) == 0:
@@ -151,18 +143,18 @@ class SwaggerRouter(Singleton):
 
             # enumerate named parameters and construct endpoint url
             reg = None
-            url = six.moves.urllib.parse.urljoin(self.base, path)
-            named = set(self.paramregex.findall(url))
+            endpoint = six.moves.urllib.parse.urljoin(self.base, path)
+            named = set(self.paramregex.findall(endpoint))
 
             # if there are any named params, convert 'em to django's format; otherwise just use url
             if len(named):
-                reg = re.sub(self.paramregex, r'(?P<\1>[^/.]+)', url) # TODO: make matching length tuneable
+                reg = re.sub(self.paramregex, self.paramsub, endpoint) # TODO: make matching length tuneable
 
                 # check if schema missing params described in url
                 if not named.issubset(allparams):
                     raise SwaggerValidationError('Path "{}" lacks parameters schema'.format(path))
             else:
-                reg = url
+                reg = endpoint
 
             # make regex bounds
             reg = re.sub(self.wrapregex, r'^\1/?$', reg)
@@ -185,6 +177,9 @@ class SwaggerRouter(Singleton):
                     name = tempname
 
                 self.enum[name] = { 'methods' : [], 'doc' : doc.splitlines() if doc else None }
+
+            # determine if we've got a viewset
+            viewset = issubclass(view, GenericViewSet)
 
             # create serializers
             for method, data in six.iteritems(methods):
@@ -214,7 +209,7 @@ class SwaggerRouter(Singleton):
 
             if not self.create:
                 as_view = getattr(view, 'as_view', None)
-                viewset = issubclass(view, GenericViewSet)
+                
 
                 # use method views if possible
                 if not viewset:
@@ -257,11 +252,12 @@ class SwaggerRouter(Singleton):
 
         # make sorted list and map to django's url()
         if not self.create:
-            self.urls = [ make_url(regex, details[0], name = details[1]) for regex, details in sorted(six.iteritems(self.handlers)) ] + self.tempurls
+            self.links = [ url(regex, details[0], name = details[1]) for regex, details in sorted(six.iteritems(self.handlers)) ]
 
     def get_enum(self):
         return self.enum
 
-    def get_urls(self):
-        return self.urls
+    @property
+    def urls(self):
+        return self.links
 
