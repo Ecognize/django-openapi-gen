@@ -165,7 +165,6 @@ def SwaggerRequestHandler(view, handler, params, *args, **kwargs):
         def extract(self, request, uparams):
             data = dict()
 
-            # TODO: what about JSON?
             for param in self.params:
                 store = None
                 value = None
@@ -192,17 +191,24 @@ def SwaggerRequestHandler(view, handler, params, *args, **kwargs):
             return data
 
         # validate request data
+        @staticmethod
         def process(self, request, *args, **kwargs):
+            print(self)
+            # wrong self!
             s_object = self.serializer() # returned obj is already another obj
             serializer = s_object(data = self.extract(request, kwargs))
 
             if serializer.is_valid(raise_exception = True):
-                return self.func(self.view, request, data = serializer.data, *args, **kwargs)
+                print('here!', self.func, self.view)
+                r= self.func(self.view, request=request, data = serializer.data, *args, **kwargs)
+                print('after')
+                return r
             else:
                 pass # s.errors contain detailed error
 
     # validate or not
     if not params:
+        print('no params')
         return handler
     else:
         serializer = SwaggerRequestSerializerMaker('SwaggerRequestSerializer')
@@ -210,8 +216,9 @@ def SwaggerRequestHandler(view, handler, params, *args, **kwargs):
         for param in params:
             serializer.set_attr(param.name, param.as_field())
 
-
+        print('validation construct')
         validator = SwaggerValidator(view, serializer, handler, params)
 
+        print('returning .process')
         return validator.process
 
