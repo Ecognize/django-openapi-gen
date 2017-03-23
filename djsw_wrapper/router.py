@@ -10,6 +10,8 @@ from djsw_wrapper.makers import SwaggerViewMaker, SwaggerRequestMethodMaker, Swa
 from djsw_wrapper.params import SwaggerParameter, SwaggerRequestHandler
 from djsw_wrapper.errors import SwaggerValidationError, SwaggerGenericError
 
+from rest_framework import status
+from rest_framework.response import Response
 from rest_framework.routers import SimpleRouter
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.mixins import CreateModelMixin, ListModelMixin, RetrieveModelMixin, UpdateModelMixin, DestroyModelMixin
@@ -40,6 +42,9 @@ SWAGGER_METHODS = set(['get', 'put', 'post', 'head', 'patch', 'options', 'delete
 #: borrowed from DRF
 VIEWSET_MAPPING = { 'list': {'post': 'create', 'get': 'list'}, 
                     'detail': {'delete': 'destroy', 'patch': 'partial_update', 'get': 'retrieve', 'put': 'update'} }
+
+#: name of apiroot view
+APIROOT_NAME = 'SwaggerAPIRoot'
 
 class SwaggerRouter(Singleton):
     def __init__(self, schema, module = None, models = None):
@@ -135,7 +140,35 @@ class SwaggerRouter(Singleton):
 
         return not namedparams.issubset(allparams), namedparams, methods
 
-    # detachable constructor
+    #: create root api view
+    def get_root_apiview(self):
+        handlers = self.handlers
+
+        class SwaggerAPIRootView(SwaggerViewClass):
+            """
+            Enumerates all available endpoints for current schema
+            """
+
+            def get(self, request, *args, **kwargs):
+                prefix = request.scheme + '://' + request.get_host()
+                resp = dict()
+                root = dict()
+
+                # get all names
+                for regex, data in six.iteritems(handlers):
+                    if data['name'] != APIROOT_NAME:
+                        root.update(data['root'])
+
+                # assign regexless urls
+                for name, url in six.iteritems(root):
+                    regex = url.strip('/').split('/')
+                    resp[name] = six.moves.urllib.parse.urljoin(prefix, regex[0])
+
+                return Response(resp, status = status.HTTP_200_OK)
+
+        return SwaggerAPIRootView.as_view()
+
+    #: main schema processing function
     def process(self):
         # try to import controller module first
         module = self.get_module()
@@ -256,7 +289,7 @@ class SwaggerRouter(Singleton):
             else:
                 final = view.as_view()
 
-            self.handlers.update({ regex : [final, name + 'Item' if key else name] })
+            self.handlers.update({ regex : { 'view': final, 'name': (name + 'Item' if key else name), 'root': { name : path } } })
 
             """
                 else:
@@ -291,10 +324,12 @@ class SwaggerRouter(Singleton):
                             if issubclass(view, DestroyModelMixin):
                                 pass
             """
+        # create API root view
+        self.handlers.update({ '^$' : { 'view' : self.get_root_apiview(), 'name': APIROOT_NAME, 'root': dict() } })
 
         # make sorted list and map to django's url()
         if not self.create:
-            self.links = [ url(regex, details[0], name = details[1]) for regex, details in sorted(six.iteritems(self.handlers)) ]
+            self.links = [ url(regex, details['view'], name = details['name']) for regex, details in sorted(six.iteritems(self.handlers)) ]
 
     @property
     def enum(self):
