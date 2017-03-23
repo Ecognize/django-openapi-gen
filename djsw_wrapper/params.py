@@ -4,6 +4,7 @@ from rest_framework import serializers
 from djsw_wrapper.errors import SwaggerParameterError
 from djsw_wrapper.makers import SwaggerRequestSerializerMaker
 
+VALIDATOR_CLASSNAME = 'SwaggerValidator'
 
 # TODO: rewrite to proper enum
 class ParameterType():
@@ -193,22 +194,19 @@ def SwaggerRequestHandler(view, handler, params, *args, **kwargs):
         # validate request data
         @staticmethod
         def process(self, request, *args, **kwargs):
-            print(self)
-            # wrong self!
-            s_object = self.serializer() # returned obj is already another obj
-            serializer = s_object(data = self.extract(request, kwargs))
+            validator = getattr(self, VALIDATOR_CLASSNAME, None)
+            s_object = validator.serializer() # returned obj is already another obj
+            serializer = s_object(data = validator.extract(request, kwargs))
 
+            # data is in serializer.data, request can be replaced here,
+            # but let's leave parameters processing to views themselves
             if serializer.is_valid(raise_exception = True):
-                print('here!', self.func, self.view)
-                r= self.func(self.view, request=request, data = serializer.data, *args, **kwargs)
-                print('after')
-                return r
+                return validator.func(self, request, *args, **kwargs)
             else:
                 pass # s.errors contain detailed error
 
     # validate or not
     if not params:
-        print('no params')
         return handler
     else:
         serializer = SwaggerRequestSerializerMaker('SwaggerRequestSerializer')
@@ -216,9 +214,8 @@ def SwaggerRequestHandler(view, handler, params, *args, **kwargs):
         for param in params:
             serializer.set_attr(param.name, param.as_field())
 
-        print('validation construct')
-        validator = SwaggerValidator(view, serializer, handler, params)
+        # store validator instance in view
+        setattr(view, VALIDATOR_CLASSNAME, SwaggerValidator(view, serializer, handler, params))
 
-        print('returning .process')
-        return validator.process
+        return SwaggerValidator.process
 

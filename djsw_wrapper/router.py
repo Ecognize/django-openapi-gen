@@ -193,15 +193,7 @@ class SwaggerRouter(Singleton):
             else:
                 self.gen[name] = { 'methods' : [], 'doc' : doc.splitlines() if doc else None }
 
-            print(view, controller)
-
-            #if self.is_single(schemapart):
-            #    name += 'Item'
-
             viewset = issubclass(view, GenericViewSet)
-
-            if viewset:
-                print(dir(view))
 
             for method, data in six.iteritems(methods):
                 # get view handler for current method
@@ -219,19 +211,18 @@ class SwaggerRouter(Singleton):
                     """
                 # update <pk> name if path has single queries
                 if viewset:
-                    print(key, inner)
                     if key:
                         if key not in namedparams:
-                            raise SwaggerValidationError('Path {} requires param `{}` to be set for single object operations'.format(path, key))
+                            raise SwaggerValidationError('Path {} requires param `{}` to be defined for single object operations'.format(path, key))
 
                         setattr(view, 'lookup_field', key)
+
                     elif stub:
                         raise SwaggerValidationError('There is no object key property ({}) for single queries for path {}'.format(SCHEMA_OBJECT_KEY, path))
 
                 # validation itself
 
                 wrapped = SwaggerRequestHandler(view, handler, data['params'])
-                print('AFTER:',handler, wrapped)
                 # write back to view
                 #if stub:
                 #    view.set_attr(inner, wrapped)
@@ -255,7 +246,6 @@ class SwaggerRouter(Singleton):
                 av_args = { method : mapping for method, mapping in six.iteritems(VIEWSET_MAPPING[group]) if method in methods }
 
                 final = view.as_view(av_args)
-                print(path, av_args)
             else:
                 final = view.as_view()
 
