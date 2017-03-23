@@ -50,10 +50,8 @@ class SwaggerRouter(Singleton):
         self.schema = schema
         self.create = False
         self.models = models
-        self.handlers = {}
-        self.external = None
-        self.stubonly = False
         self.module = module
+        self.handlers = {}
 
         self.process()
 
@@ -108,7 +106,12 @@ class SwaggerRouter(Singleton):
         for method in methods:
             responses = schemapart[method].get('responses', None)
             parameters = schemapart[method].get('parameters', None)
-            methoddata = { 'params' : None, 'model' : None }
+            description = schemapart[method].get('description', None)
+
+            methoddata = { 'params' : None, 'model' : None, 'doc' : None }
+
+            if description:
+                methoddata['doc'] = description
 
             if parameters:
                 wrapped = list(map(lambda p : SwaggerParameter(p), parameters))
@@ -149,10 +152,12 @@ class SwaggerRouter(Singleton):
 
         # iterate over all paths
         for path, tree in six.iteritems(self.paths):
+            doc = []
             view = None
             stub = True
             name = None
             regex = None
+            viewdoc = None
             controller = None
 
             # get view name from schema
@@ -184,9 +189,6 @@ class SwaggerRouter(Singleton):
             regex = re.sub(SWAGGER_PARAMS_REGEX, DJANGO_PARAMS_STRING, fullpath) if len(namedparams) > 0 else fullpath
             regex = re.sub(URL_SLASHES_REGEX, DJANGO_URL_SUBSTRING, regex)
 
-            # get documentation (if present)
-            doc = tree.get('description', None)
-
             # create stub view object or use existing controller
             if not self.create:
                 view = controller if controller else SwaggerViewMaker(name)()
@@ -195,11 +197,16 @@ class SwaggerRouter(Singleton):
 
             viewset = issubclass(view, GenericViewSet)
 
+            # TODO: delete/forbid methods undefined in schema and notify user
+            if viewset:
+                pass
+
+            # for all defined methods, get their handlers from view
             for method, data in six.iteritems(methods):
-                # get view handler for current method
                 key = self.get_object_key(tree)
                 inner = self.get_viewset_method(method, key)
-                handler = getattr(view, inner if viewset else method, None) if not stub else None
+                objname = inner if viewset else method
+                handler = getattr(view, objname, None) if not stub else None
 
                 if handler is None:
                     handler = SwaggerRequestMethodMaker(data['model'])
@@ -214,30 +221,30 @@ class SwaggerRouter(Singleton):
                     if key:
                         if key not in namedparams:
                             raise SwaggerValidationError('Path {} requires param `{}` to be defined for single object operations'.format(path, key))
-
                         setattr(view, 'lookup_field', key)
 
                     elif stub:
                         raise SwaggerValidationError('There is no object key property ({}) for single queries for path {}'.format(SCHEMA_OBJECT_KEY, path))
 
                 # validation itself
-
                 wrapped = SwaggerRequestHandler(view, handler, data['params'])
-                # write back to view
-                #if stub:
-                #    view.set_attr(inner, wrapped)
-                #else:
-                setattr(view, inner, wrapped)#six.create_bound_method(wrapped, view))
 
+                # write back to view
+                setattr(view, objname, wrapped)
+
+                # doc gathering
+                if data['doc']:
+                    doc.append(objname + ':\n' + data['doc'])
 
             # create doc
-            if doc and stub and not self.create:
-                view.set_attr('__doc__', doc)
+            old = getattr(view, '__doc__', None)
+
+            if len(doc) and not self.create:
+                setattr(view, '__doc__', str(old if old else '') + '\n' + str('\n').join(doc))
 
             if not self.create:
                 as_view = getattr(view, 'as_view', None)
                 
-
             # use method views if possible
             final = None
 

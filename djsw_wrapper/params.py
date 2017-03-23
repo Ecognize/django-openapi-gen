@@ -4,8 +4,6 @@ from rest_framework import serializers
 from djsw_wrapper.errors import SwaggerParameterError
 from djsw_wrapper.makers import SwaggerRequestSerializerMaker
 
-VALIDATOR_CLASSNAME = 'SwaggerValidator'
-
 # TODO: rewrite to proper enum
 class ParameterType():
     String = 0
@@ -95,11 +93,11 @@ class SwaggerParameter():
 
         # quick check for array
         if self._oftype == ParameterType.Array and 'items' not in schema:
-            raise SwaggerParameterError('You should provide items dictionary for using array type')
+            raise SwaggerParameterError('You should provide `items` dictionary for using array type')
 
         # quick check for file
         if self._oftype == ParameterType.File and self._location is not ParameterLocation.FormData:
-            raise SwaggerParameterError('You have to use formData location for using file type')
+            raise SwaggerParameterError('You have to use `formData` location for using file type')
 
         if self._oftype == ParameterType.Array:
             child = self.typemap(ParameterType(self._items['type']).get_type())
@@ -192,18 +190,23 @@ def SwaggerRequestHandler(view, handler, params, *args, **kwargs):
             return data
 
         # validate request data
-        @staticmethod
-        def process(self, request, *args, **kwargs):
-            validator = getattr(self, VALIDATOR_CLASSNAME, None)
-            s_object = validator.serializer() # returned obj is already another obj
-            serializer = s_object(data = validator.extract(request, kwargs))
+        def process(self):
+            function = self.func
+            extractor = self.extract
+            validator = self.serializer
 
-            # data is in serializer.data, request can be replaced here,
-            # but let's leave parameters processing to views themselves
-            if serializer.is_valid(raise_exception = True):
-                return validator.func(self, request, *args, **kwargs)
-            else:
-                pass # s.errors contain detailed error
+            def method(cls, request, *args, **kwargs):
+                s_object = validator() # returned obj is already another obj
+                serializer = s_object(data = extractor(request, kwargs))
+
+                # validated data is in serializer.data and request can be replaced here,
+                # but let's leave parameters processing to views - they were made for it
+                if serializer.is_valid(raise_exception = True):
+                    return function(cls, request, *args, **kwargs)
+                else:
+                    pass # s.errors contain detailed error
+
+            return method
 
     # validate or not
     if not params:
@@ -214,8 +217,7 @@ def SwaggerRequestHandler(view, handler, params, *args, **kwargs):
         for param in params:
             serializer.set_attr(param.name, param.as_field())
 
-        # store validator instance in view
-        setattr(view, VALIDATOR_CLASSNAME, SwaggerValidator(view, serializer, handler, params))
+        validator = SwaggerValidator(view, serializer, handler, params)
 
-        return SwaggerValidator.process
+        return validator.process()
 
