@@ -289,7 +289,19 @@ class SwaggerRouter(Singleton):
             else:
                 final = view.as_view()
 
-            self.handlers.update({ regex : { 'view': final, 'name': (name + 'Item' if key else name), 'root': { name : path } } })
+            # properly format name for viewsets
+            if viewset:
+                temp = None
+                queryset = getattr(view, 'queryset', None)
+
+                if queryset is not None:
+                    temp = queryset.model._meta.object_name.lower()
+                else:
+                    temp = name.lower()
+
+                name = temp + ('-detail' if key else '-list')
+
+            self.handlers.update({ regex : { 'view': final, 'name': name, 'root': { name : path } } })
 
             """
                 else:
