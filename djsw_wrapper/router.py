@@ -2,8 +2,9 @@ import re
 import logging
 import importlib
 
+from collections import OrderedDict
 from django.utils import six
-from django.conf.urls import url, include
+from django.conf.urls import url as make_url, include
 
 from djsw_wrapper.utils import Singleton, Template, Resolver, LazyClass
 from djsw_wrapper.makers import SwaggerViewMaker, SwaggerRequestMethodMaker, SwaggerViewClass
@@ -143,30 +144,44 @@ class SwaggerRouter(Singleton):
 
         return not namedparams.issubset(allparams), namedparams, methods
 
+    #: construct full url
+    def make_fullpath(self, path):
+        return six.moves.urllib.parse.urljoin(self.base.rstrip('/') + '/', path.lstrip('/'))
+
+    #: convert swagger path to django url regex (with params if present)
+    def make_regex(self, path, named = False):
+        regex = re.sub(SWAGGER_PARAMS_REGEX, DJANGO_PARAMS_STRING, path) if named else path
+        regex = re.sub(URL_SLASHES_REGEX, DJANGO_URL_SUBSTRING, regex)
+
+        return regex
+
+    #: create handler ready for urlization
+    def store_handler(self, path, view, linkname, displayname, named = False):
+        fullpath = self.make_fullpath(path)
+        regex = self.make_regex(fullpath, named)
+
+        self.handlers.update({ regex : { 'view': view, 'name': linkname, 'display': displayname } })
+
     #: create root api view
     def get_root_apiview(self):
-        handlers = self.handlers
+        handlers = sorted(self.handlers.items(), key = lambda x : x[1]['display'])
 
-        class Dummy:
-            def enumerate(self, request, *args, **kwargs):
-                resp = dict()
+        def list_handlers(self, request, *args, **kwargs):
+            resp = OrderedDict()
 
-                namespace = request.resolver_match.namespace
+            # get all names
+            for regex, data in handlers:
+                name = data['name']
+                alias = data['display']
 
-                print(namespace)
-                # get all names
-                for regex, data in six.iteritems(handlers):
-                    name = data['name']
-                    alias = data['display']
+                if alias != APIROOT_NAME:
+                    try:
+                        resp[alias] = reverse(name, args = args, kwargs = kwargs, request = request, format = kwargs.get('format', None))
+                    except NoReverseMatch:
+                        # here we've got a path with defined params which are not specified in request
+                        continue
 
-                    if alias != APIROOT_NAME:
-                        print(name, alias)
-                        try:
-                            resp[alias] = request.build_absolute_uri(reverse(name, args = args, kwargs = kwargs, request = request))
-                        except NoReverseMatch:
-                            continue
-
-                return Response(resp, status = status.HTTP_200_OK)
+            return Response(resp, status = status.HTTP_200_OK)
 
         # get available info from schema
         info = self.schema.get('info', None)
@@ -177,7 +192,7 @@ class SwaggerRouter(Singleton):
         # construct class
         apiroot = LazyClass(name, SwaggerViewClass)
 
-        apiroot.set_attr('get', Dummy.enumerate)
+        apiroot.set_attr('get', list_handlers)
         apiroot.set_attr('__doc__', 'v.' + vers + '\n\n' + desc)
 
         return apiroot().as_view()
@@ -222,11 +237,9 @@ class SwaggerRouter(Singleton):
             except AttributeError:
                 self.log('Could not find controller "{}" for path "{}", using stub handler'.format(name, path))
 
-            # construct full url
-            fullpath = six.moves.urllib.parse.urljoin(self.base.rstrip('/') + '/', path.lstrip('/'))
-
             # get all methods for this path and check for named params
-            mismatch, namedparams, methods = self.enumerate_methods(tree, fullpath)
+            mismatch, namedparams, methods = self.enumerate_methods(tree, path)
+            named = len(namedparams) > 0
 
             # check for empty path
             if len(methods) == 0:
@@ -234,10 +247,6 @@ class SwaggerRouter(Singleton):
 
             if mismatch:
                 raise SwaggerValidationError('Path "{}" lacks parameters schema'.format(path))
-
-            # and make bounded regex of it
-            regex = re.sub(SWAGGER_PARAMS_REGEX, DJANGO_PARAMS_STRING, fullpath) if len(namedparams) > 0 else fullpath
-            regex = re.sub(URL_SLASHES_REGEX, DJANGO_URL_SUBSTRING, regex)
 
             # create stub view object or use existing controller
             if not self.create:
@@ -304,7 +313,6 @@ class SwaggerRouter(Singleton):
 
                 final = view.as_view(av_args)
             else:
-                print('FINAL', view)
                 final = view.as_view()
 
             # properly format name for viewsets
@@ -323,7 +331,18 @@ class SwaggerRouter(Singleton):
             else:
                 linkname = name.lower()
 
-            self.handlers.update({ regex : { 'view': final, 'name': linkname, 'display': name } })
+            # special case for path params — we need to create individual endpoints for each param
+            if not viewset and not key and named:
+                url = str('/')
+
+                # break url by parts and append by one
+                for part in path.strip('/').split('/'):
+                    url += (part + '/')
+
+                    self.store_handler(url.rstrip('/'), final, linkname, name, True)
+            else:
+                self.store_handler(path, final, linkname, name, named)
+
 
             """
                 else:
@@ -360,10 +379,10 @@ class SwaggerRouter(Singleton):
             """
         if not self.create:
             # make sorted list and map to django's url()
-            self.links = [ url(regex, details['view'], name = details['name']) for regex, details in sorted(six.iteritems(self.handlers)) ]
+            self.links = [ make_url(regex, details['view'], name = details['name']) for regex, details in six.iteritems(self.handlers) ]
 
             # create API root view
-            self.links.append(url('^' + self.base.strip('/') + '$', self.get_root_apiview(), name = APIROOT_NAME))
+            self.links.append(make_url(self.make_regex(self.base), self.get_root_apiview(), name = APIROOT_NAME))
 
     @property
     def enum(self):
