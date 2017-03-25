@@ -30,12 +30,6 @@ def SwaggerRequestMethodMaker(model = None):
 class SwaggerViewMaker(LazyClass):
     oftype = SwaggerViewClass
 
-    #def as_view(self):
-    #    print(self)
-    #    c = self()
-
-#        return self.as_view()
-
 class SwaggerRequestSerializerMaker(LazyClass):
     oftype = serializers.Serializer
 
