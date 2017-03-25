@@ -3,7 +3,7 @@ import logging
 import importlib
 
 from django.utils import six
-from django.conf.urls import url
+from django.conf.urls import url, include
 
 from djsw_wrapper.utils import Singleton, Template, Resolver, LazyClass
 from djsw_wrapper.makers import SwaggerViewMaker, SwaggerRequestMethodMaker, SwaggerViewClass
@@ -16,10 +16,8 @@ from rest_framework.routers import SimpleRouter
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.mixins import CreateModelMixin, ListModelMixin, RetrieveModelMixin, UpdateModelMixin, DestroyModelMixin
 
-try:
-    from django.urls import reverse, NoReverseMatch
-except ImportError:
-    from django.core.urlresolvers import reverse, NoReverseMatch
+from rest_framework.reverse import reverse
+from rest_framework.compat import NoReverseMatch
 
 logger = logging.getLogger(__name__)
 
@@ -153,6 +151,9 @@ class SwaggerRouter(Singleton):
             def enumerate(self, request, *args, **kwargs):
                 resp = dict()
 
+                namespace = request.resolver_match.namespace
+
+                print(namespace)
                 # get all names
                 for regex, data in six.iteritems(handlers):
                     name = data['name']
@@ -161,7 +162,7 @@ class SwaggerRouter(Singleton):
                     if alias != APIROOT_NAME:
                         print(name, alias)
                         try:
-                            resp[alias] = request.build_absolute_uri(reverse(name, args = args, kwargs = kwargs))
+                            resp[alias] = request.build_absolute_uri(reverse(name, args = args, kwargs = kwargs, request = request))
                         except NoReverseMatch:
                             continue
 
@@ -222,7 +223,7 @@ class SwaggerRouter(Singleton):
                 self.log('Could not find controller "{}" for path "{}", using stub handler'.format(name, path))
 
             # construct full url
-            fullpath = six.moves.urllib.parse.urljoin(self.base, path)
+            fullpath = six.moves.urllib.parse.urljoin(self.base.rstrip('/') + '/', path.lstrip('/'))
 
             # get all methods for this path and check for named params
             mismatch, namedparams, methods = self.enumerate_methods(tree, fullpath)
@@ -320,7 +321,7 @@ class SwaggerRouter(Singleton):
 
                 linkname = temp + ('-detail' if key else '-list')
             else:
-                linkname = name
+                linkname = name.lower()
 
             self.handlers.update({ regex : { 'view': final, 'name': linkname, 'display': name } })
 
@@ -362,7 +363,7 @@ class SwaggerRouter(Singleton):
             self.links = [ url(regex, details['view'], name = details['name']) for regex, details in sorted(six.iteritems(self.handlers)) ]
 
             # create API root view
-            self.links.append(url('^$', self.get_root_apiview(), name = APIROOT_NAME))
+            self.links.append(url('^' + self.base.strip('/') + '$', self.get_root_apiview(), name = APIROOT_NAME))
 
     @property
     def enum(self):
