@@ -186,6 +186,24 @@ class SwaggerRouter(Singleton):
 
         return get_object
 
+    #: the same for get_url
+    def properly_kwarged_get_url(self, kwarg_lookup):
+        def get_url(self, obj, view_name, request, format):
+            """
+            Given an object, return the URL that hyperlinks to the object.
+            May raise a `NoReverseMatch` if the `view_name` and `lookup_field`
+            attributes are not configured to correctly match the URL conf.
+            """
+            # Unsaved objects will not yet have a valid URL.
+            if hasattr(obj, 'pk') and obj.pk in (None, ''):
+                return None
+
+            lookup_value = getattr(obj, self.lookup_field)
+            kwargs = {kwarg_lookup: lookup_value}
+            return self.reverse(view_name, kwargs=kwargs, request=request, format=format)
+
+        return get_url
+
     #: create root api view
     def get_root_apiview(self):
         handlers = sorted(self.handlers.items(), key = lambda x : x[1]['display'])
@@ -316,8 +334,10 @@ class SwaggerRouter(Singleton):
                                 # https://github.com/tomchristie/django-rest-framework/issues/5034
                                 if isinstance(sf, HyperlinkedRelatedField): # many == False
                                     setattr(sf, 'get_object', self.properly_kwarged_get_object(key))
+                                    setattr(sf, 'get_url', self.properly_kwarged_get_url(key))
                                 elif isinstance(sf, ManyRelatedField): # many == True
                                     setattr(sf.child_relation, 'get_object', self.properly_kwarged_get_object(key))
+                                    setattr(sf.child_relation, 'get_url', self.properly_kwarged_get_url(key))
                                 # more fancy serializer classes to be added here
                     elif stub:
                         raise SwaggerValidationError('There is no object key property ({}) for single queries for path {}'.format(SCHEMA_OBJECT_KEY, path))
