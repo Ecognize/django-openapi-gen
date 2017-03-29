@@ -204,6 +204,10 @@ class SwaggerRouter(Singleton):
 
         return get_url
 
+    #: method binding helper
+    def bind(self, obj, name, func):
+        setattr(obj, name, six.create_bound_method(func, obj))
+
     #: create root api view
     def get_root_apiview(self):
         handlers = sorted(self.handlers.items(), key = lambda x : x[1]['display'])
@@ -333,11 +337,11 @@ class SwaggerRouter(Singleton):
                                 # have to substitute the whole method instead of one attribute
                                 # https://github.com/tomchristie/django-rest-framework/issues/5034
                                 if isinstance(sf, HyperlinkedRelatedField): # many == False
-                                    setattr(sf, 'get_object', self.properly_kwarged_get_object(key))
-                                    setattr(sf, 'get_url', self.properly_kwarged_get_url(key))
+                                    self.bind(sf, 'get_object', self.properly_kwarged_get_object(key))
+                                    self.bind(sf, 'get_url', self.properly_kwarged_get_url(key))
                                 elif isinstance(sf, ManyRelatedField): # many == True
-                                    setattr(sf.child_relation, 'get_object', self.properly_kwarged_get_object(key))
-                                    setattr(sf.child_relation, 'get_url', self.properly_kwarged_get_url(key))
+                                    self.bind(sf.child_relation, 'get_object', self.properly_kwarged_get_object(key))
+                                    self.bind(sf.child_relation, 'get_url', self.properly_kwarged_get_url(key))
                                 # more fancy serializer classes to be added here
                     elif stub:
                         raise SwaggerValidationError('There is no object key property ({}) for single queries for path {}'.format(SCHEMA_OBJECT_KEY, path))
