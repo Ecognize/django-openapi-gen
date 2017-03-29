@@ -165,6 +165,26 @@ class SwaggerRouter(Singleton):
 
         self.handlers.update({ regex : { 'view': view, 'name': linkname, 'display': displayname } })
 
+    #: DRF only allows lookup_url_kwarg specified during __init__,
+    #: which's not always possible. If it's not specified there,
+    #: variable defaults to lookup_field attribute. It's too risky
+    #: to overwrite it also, so the only way to ensure we are using
+    #: right url kwarg is to substitute the whole method with the
+    #: right argument provided. more info:
+    #: https://github.com/tomchristie/django-rest-framework/issues/5034
+    def properly_kwarged_get_object(self, kwarg_lookup):
+        def get_object(self, view_name, view_args, view_kwargs):
+            """
+            Return the object corresponding to a matched URL.
+            Takes the matched URL conf arguments, and should return an
+            object instance, or raise an `ObjectDoesNotExist` exception.
+            """
+            lookup_value = view_kwargs[kwarg_lookup]
+            lookup_kwargs = {self.lookup_field: lookup_value}
+            return self.get_queryset().get(**lookup_kwargs)
+
+        return get_object
+
     #: create root api view
     def get_root_apiview(self):
         handlers = sorted(self.handlers.items(), key = lambda x : x[1]['display'])
@@ -291,10 +311,12 @@ class SwaggerRouter(Singleton):
                             # thanks to default metaclass, we can iterate serializer class
                             # without creating an instance of it
                             for sn, sf in six.iteritems(view.serializer_class._declared_fields):
+                                # have to substitute the whole method instead of one attribute
+                                # https://github.com/tomchristie/django-rest-framework/issues/5034
                                 if isinstance(sf, HyperlinkedRelatedField): # many == False
-                                    setattr(sf, LOOKUP_FIELD_NAME, key)
+                                    setattr(sf, 'get_object', self.properly_kwarged_get_object(key))
                                 elif isinstance(sf, ManyRelatedField): # many == True
-                                    setattr(sf.child_relation, LOOKUP_FIELD_NAME, key)
+                                    setattr(sf.child_relation, 'get_object', self.properly_kwarged_get_object(key))
                                 # more fancy serializer classes to be added here
                     elif stub:
                         raise SwaggerValidationError('There is no object key property ({}) for single queries for path {}'.format(SCHEMA_OBJECT_KEY, path))
