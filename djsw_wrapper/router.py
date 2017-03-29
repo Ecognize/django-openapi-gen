@@ -181,6 +181,7 @@ class SwaggerRouter(Singleton):
             """
             lookup_value = view_kwargs[kwarg_lookup]
             lookup_kwargs = {self.lookup_field: lookup_value}
+            print('DEBUG GET_OBJECT: ', lookup_kwargs)
             return self.get_queryset().get(**lookup_kwargs)
 
         return get_object
