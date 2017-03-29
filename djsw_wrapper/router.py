@@ -15,7 +15,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.routers import SimpleRouter
 from rest_framework.viewsets import GenericViewSet
-from rest_framework.mixins import CreateModelMixin, ListModelMixin, RetrieveModelMixin, UpdateModelMixin, DestroyModelMixin
+from rest_framework.relations import ManyRelatedField, HyperlinkedRelatedField
 
 from rest_framework.reverse import reverse
 from rest_framework.compat import NoReverseMatch
@@ -46,6 +46,9 @@ SWAGGER_METHODS = set(['get', 'put', 'post', 'head', 'patch', 'options', 'delete
 #: borrowed from DRF
 VIEWSET_MAPPING = { 'list': {'post': 'create', 'get': 'list'}, 
                     'detail': {'delete': 'destroy', 'patch': 'partial_update', 'get': 'retrieve', 'put': 'update'} }
+
+#: very important attribute in DRF classes which describes primary key (usually `pk` in Django)
+LOOKUP_FIELD_NAME = 'lookup_field'
 
 #: name of apiroot view
 APIROOT_NAME = 'SwaggerAPIRoot'
@@ -280,8 +283,19 @@ class SwaggerRouter(Singleton):
                     if key:
                         if key not in namedparams:
                             raise SwaggerValidationError('Path {} requires param `{}` to be defined for single object operations'.format(path, key))
-                        setattr(view, 'lookup_field', key)
 
+                        setattr(view, LOOKUP_FIELD_NAME, key)
+
+                        # if we have fancy serializers, update them as well
+                        if hasattr(view, 'serializer_class'):
+                            # thanks to default metaclass, we can iterate serializer class
+                            # without creating an instance of it
+                            for sn, sf in six.iteritems(view.serializer_class._declared_fields):
+                                if isinstance(sf, HyperlinkedRelatedField): # many == False
+                                    setattr(sf, LOOKUP_FIELD_NAME, key)
+                                elif isinstance(sf, ManyRelatedField): # many == True
+                                    setattr(sf.child_relation, LOOKUP_FIELD_NAME, key)
+                                # more fancy serializer classes to be added here
                     elif stub:
                         raise SwaggerValidationError('There is no object key property ({}) for single queries for path {}'.format(SCHEMA_OBJECT_KEY, path))
 
