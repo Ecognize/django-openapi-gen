@@ -47,8 +47,8 @@ SWAGGER_METHODS = set(['get', 'put', 'post', 'head', 'patch', 'options', 'delete
 VIEWSET_MAPPING = { 'list': {'post': 'create', 'get': 'list'}, 
                     'detail': {'delete': 'destroy', 'patch': 'partial_update', 'get': 'retrieve', 'put': 'update'} }
 
-#: very important attribute in DRF classes which describes primary key (usually `pk` in Django)
-LOOKUP_FIELD_NAME = 'lookup_field'
+#: request kwarg parameter describing object primary key (usually `pk` in Django)
+LOOKUP_FIELD_NAME = 'lookup_url_kwarg'
 
 #: name of apiroot view
 APIROOT_NAME = 'SwaggerAPIRoot'
