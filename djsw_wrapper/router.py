@@ -200,6 +200,7 @@ class SwaggerRouter(Singleton):
 
             lookup_value = getattr(obj, self.lookup_field)
             kwargs = {kwarg_lookup: lookup_value}
+            print('DEBUG_GET_URL: ', kwargs)
             return self.reverse(view_name, kwargs=kwargs, request=request, format=format)
 
         return get_url
