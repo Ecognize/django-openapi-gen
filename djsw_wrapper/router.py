@@ -338,11 +338,11 @@ class SwaggerRouter(Singleton):
                                 # have to substitute the whole method instead of one attribute
                                 # https://github.com/tomchristie/django-rest-framework/issues/5034
                                 if isinstance(sf, HyperlinkedRelatedField): # many == False
-                                    self.bind(sf, 'get_object', self.properly_kwarged_get_object(key))
-                                    self.bind(sf, 'get_url', self.properly_kwarged_get_url(key))
+                                    self.bind(view.serializer_class._declared_fields[sn], 'get_object', self.properly_kwarged_get_object(key))
+                                    self.bind(view.serializer_class._declared_fields[sn], 'get_url', self.properly_kwarged_get_url(key))
                                 elif isinstance(sf, ManyRelatedField): # many == True
-                                    self.bind(sf.child_relation, 'get_object', self.properly_kwarged_get_object(key))
-                                    self.bind(sf.child_relation, 'get_url', self.properly_kwarged_get_url(key))
+                                    self.bind(view.serializer_class._declared_fields[sn].child_relation, 'get_object', self.properly_kwarged_get_object(key))
+                                    self.bind(view.serializer_class._declared_fields[sn].child_relation, 'get_url', self.properly_kwarged_get_url(key))
                                 # more fancy serializer classes to be added here
                     elif stub:
                         raise SwaggerValidationError('There is no object key property ({}) for single queries for path {}'.format(SCHEMA_OBJECT_KEY, path))
