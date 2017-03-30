@@ -15,7 +15,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.routers import SimpleRouter
 from rest_framework.viewsets import GenericViewSet
-from rest_framework.relations import ManyRelatedField, HyperlinkedRelatedField
+from rest_framework.serializers import HyperlinkedRelatedField
+from rest_framework.relations import ManyRelatedField
 
 from rest_framework.reverse import reverse
 from rest_framework.compat import NoReverseMatch
@@ -52,6 +53,41 @@ LOOKUP_FIELD_NAME = 'lookup_url_kwarg'
 
 #: name of apiroot view
 APIROOT_NAME = 'SwaggerAPIRoot'
+
+# helper shortcut due to failed attempt of runtime serializer class patching
+class SwaggerHyperlinkedRelatedField(HyperlinkedRelatedField):
+    def get_url(self, obj, view_name, request, format):
+        """
+        Given an object, return the URL that hyperlinks to the object.
+        May raise a `NoReverseMatch` if the `view_name` and `lookup_field`
+        attributes are not configured to correctly match the URL conf.
+        """
+        # Unsaved objects will not yet have a valid URL.
+        if hasattr(obj, 'pk') and obj.pk in (None, ''):
+            return None
+
+        # override lookup_url_kwarg
+        router = SwaggerRouter()
+        self.lookup_url_kwarg = router.get_view_key(view_name) or self.lookup_field
+
+        lookup_value = getattr(obj, self.lookup_field)
+        kwargs = {self.lookup_url_kwarg: lookup_value}
+        return self.reverse(view_name, kwargs=kwargs, request=request, format=format)
+
+    def get_object(self, view_name, view_args, view_kwargs):
+        """
+        Return the object corresponding to a matched URL.
+        Takes the matched URL conf arguments, and should return an
+        object instance, or raise an `ObjectDoesNotExist` exception.
+        """
+
+        # override lookup_url_kwarg
+        router = SwaggerRouter()
+        self.lookup_url_kwarg = router.get_view_key(view_name) or self.lookup_field
+
+        lookup_value = view_kwargs[self.lookup_url_kwarg]
+        lookup_kwargs = {self.lookup_field: lookup_value}
+        return self.get_queryset().get(**lookup_kwargs)
 
 class SwaggerRouter(Singleton):
     def __init__(self, schema, module = None, models = None):
@@ -159,55 +195,41 @@ class SwaggerRouter(Singleton):
         return regex
 
     #: create handler ready for urlization
-    def store_handler(self, path, view, linkname, displayname, named = False):
+    def store_handler(self, path, view, linkname, displayname, named = False, key = None):
         fullpath = self.make_fullpath(path)
         regex = self.make_regex(fullpath, named)
 
-        self.handlers.update({ regex : { 'view': view, 'name': linkname, 'display': displayname } })
+        self.handlers.update({ regex : { 'view': view, 'name': linkname, 'display': displayname, 'key': key } })
 
-    #: DRF only allows lookup_url_kwarg specified during __init__,
-    #: which's not always possible. If it's not specified there,
-    #: variable defaults to lookup_field attribute. It's too risky
-    #: to overwrite it also, so the only way to ensure we are using
-    #: right url kwarg is to substitute the whole method with the
-    #: right argument provided. more info:
-    #: https://github.com/tomchristie/django-rest-framework/issues/5034
-    def properly_kwarged_get_object(self, kwarg_lookup):
-        def get_object(self, view_name, view_args, view_kwargs):
-            """
-            Return the object corresponding to a matched URL.
-            Takes the matched URL conf arguments, and should return an
-            object instance, or raise an `ObjectDoesNotExist` exception.
-            """
-            lookup_value = view_kwargs[kwarg_lookup]
-            lookup_kwargs = {self.lookup_field: lookup_value}
-            print('DEBUG GET_OBJECT: ', lookup_kwargs)
-            return self.get_queryset().get(**lookup_kwargs)
+     #: children-aware instance checker
+    def anyinstance(self, obj, cls):
+        if hasattr(obj, 'child_relation'):
+            return isinstance(obj.child_relation, cls)
+        else:
+            return isinstance(obj, cls)
 
-        return get_object
+    #: construct DRF-friendly view(set) name
+    def format_view_name(self, view, viewset, name, key = None):
+        if viewset:
+            temp = None
+            queryset = getattr(view, 'queryset', None)
 
-    #: the same for get_url
-    def properly_kwarged_get_url(self, kwarg_lookup):
-        def get_url(self, obj, view_name, request, format):
-            """
-            Given an object, return the URL that hyperlinks to the object.
-            May raise a `NoReverseMatch` if the `view_name` and `lookup_field`
-            attributes are not configured to correctly match the URL conf.
-            """
-            # Unsaved objects will not yet have a valid URL.
-            if hasattr(obj, 'pk') and obj.pk in (None, ''):
-                return None
+            if queryset is not None:
+                temp = queryset.model._meta.object_name.lower()
+            else:
+                temp = name.lower()
 
-            lookup_value = getattr(obj, self.lookup_field)
-            kwargs = {kwarg_lookup: lookup_value}
-            print('DEBUG_GET_URL: ', kwargs)
-            return self.reverse(view_name, kwargs=kwargs, request=request, format=format)
+            return str(temp + ('-detail' if key else '-list'))
+        else:
+            return name.lower()
 
-        return get_url
+    #: get object key (if set) for specified view
+    def get_view_key(self, viewname):
+        for reg, data in six.iteritems(self.handlers):
+            if data['name'] == viewname:
+                return data['key']
 
-    #: method binding helper
-    def bind(self, obj, name, func):
-        setattr(obj, name, six.create_bound_method(func, obj))
+        return None
 
     #: create root api view
     def get_root_apiview(self):
@@ -330,20 +352,17 @@ class SwaggerRouter(Singleton):
 
                         setattr(view, LOOKUP_FIELD_NAME, key)
 
-                        # if we have fancy serializers, update them as well
-                        if hasattr(view, 'serializer_class'):
+                        # if we have fancy serializers, check if they are properly subclassed
+                        serializer = getattr(view, 'serializer_class', None)
+
+                        if serializer:
                             # thanks to default metaclass, we can iterate serializer class
                             # without creating an instance of it
-                            for sn, sf in six.iteritems(view.serializer_class._declared_fields):
-                                # have to substitute the whole method instead of one attribute
-                                # https://github.com/tomchristie/django-rest-framework/issues/5034
-                                if isinstance(sf, HyperlinkedRelatedField): # many == False
-                                    self.bind(view.serializer_class._declared_fields[sn], 'get_object', self.properly_kwarged_get_object(key))
-                                    self.bind(view.serializer_class._declared_fields[sn], 'get_url', self.properly_kwarged_get_url(key))
-                                elif isinstance(sf, ManyRelatedField): # many == True
-                                    self.bind(view.serializer_class._declared_fields[sn].child_relation, 'get_object', self.properly_kwarged_get_object(key))
-                                    self.bind(view.serializer_class._declared_fields[sn].child_relation, 'get_url', self.properly_kwarged_get_url(key))
-                                # more fancy serializer classes to be added here
+                            for sn, sf in six.iteritems(serializer._declared_fields):
+                                if self.anyinstance(sf, HyperlinkedRelatedField) and not self.anyinstance(sf, SwaggerHyperlinkedRelatedField):
+                                    raise SwaggerGenericError('Please use "{}" instead of "{}" in serializer "{}"'.format(
+                                        'SwaggerHyperlinkedRelatedField', 'HyperlinkedRelatedField', serializer.__name__))
+                                # more fancy serializer class checks to be added here
                     elif stub:
                         raise SwaggerValidationError('There is no object key property ({}) for single queries for path {}'.format(SCHEMA_OBJECT_KEY, path))
 
@@ -377,21 +396,8 @@ class SwaggerRouter(Singleton):
             else:
                 final = view.as_view()
 
-            # properly format name for viewsets
-            linkname = None
-
-            if viewset:
-                temp = None
-                queryset = getattr(view, 'queryset', None)
-
-                if queryset is not None:
-                    temp = queryset.model._meta.object_name.lower()
-                else:
-                    temp = name.lower()
-
-                linkname = temp + ('-detail' if key else '-list')
-            else:
-                linkname = name.lower()
+            # properly format name for viewsets if applicable
+            linkname = self.format_view_name(view, viewset, name, key)
 
             # special case for path params — we need to create individual endpoints for each param
             if not viewset and not key and named:
@@ -401,9 +407,9 @@ class SwaggerRouter(Singleton):
                 for part in path.strip('/').split('/'):
                     url += (part + '/')
 
-                    self.store_handler(url.rstrip('/'), final, linkname, name, True)
+                    self.store_handler(url.rstrip('/'), final, linkname, name, named = True)
             else:
-                self.store_handler(path, final, linkname, name, named)
+                self.store_handler(path, final, linkname, name, named, key)
 
 
             """
