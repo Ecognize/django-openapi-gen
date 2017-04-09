@@ -4,6 +4,7 @@ import importlib
 
 from collections import OrderedDict
 from django.utils import six
+from django.conf import settings
 from django.conf.urls import url as make_url, include
 
 from djsw_wrapper.utils import Singleton, Template, Resolver, LazyClass
@@ -355,7 +356,7 @@ class SwaggerRouter(Singleton):
                         # if we have fancy serializers, check if they are properly subclassed
                         serializer = getattr(view, 'serializer_class', None)
 
-                        if serializer:
+                        if serializer and getattr(settings, 'SWAGGER_STRICT', True):
                             # thanks to default metaclass, we can iterate serializer class
                             # without creating an instance of it
                             for sn, sf in six.iteritems(serializer._declared_fields):
