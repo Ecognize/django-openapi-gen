@@ -134,7 +134,7 @@ class SwaggerParameter():
         items = None
 
         if self._oftype is ParameterType.String:
-            self._params['max_length'] = 255 # to be discussed
+            self._params['max_length'] = 65535 # to be discussed
         elif self._oftype is ParameterType.Enum:
             pass
         elif self._oftype is ParameterType.Number:
