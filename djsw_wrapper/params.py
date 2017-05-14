@@ -89,7 +89,7 @@ class SwaggerParameter():
         self._required = schema.get('required', False)
 
         # default params
-        self._params = { 'required' : self.required }
+        self._params = { 'required' : self._required }
 
         # quick check for array
         if self._oftype == ParameterType.Array and 'items' not in schema:
